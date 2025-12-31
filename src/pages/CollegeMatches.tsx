@@ -187,7 +187,14 @@ export default function CollegeMatches() {
               </TableHeader>
               <TableBody>
                 {sorted.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setSelected(r);
+                      setDrawerOpen(true);
+                    }}
+                  >
                     <TableCell className="font-medium">{r.collegeName}</TableCell>
 
                     <TableCell>
