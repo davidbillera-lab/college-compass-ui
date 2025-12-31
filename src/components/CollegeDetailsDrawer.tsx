@@ -1,9 +1,11 @@
 import * as React from "react";
 import { CollegeRecommendation } from "../types/college";
+import { CollegeStatus } from "../types/shortlist";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Sheet,
@@ -34,13 +36,39 @@ function bandLabel(band: string) {
   return "Reach";
 }
 
+function statusLabel(s: CollegeStatus) {
+  if (s === "interested") return "Interested";
+  if (s === "applying") return "Applying";
+  if (s === "applied") return "Applied";
+  return "Not Now";
+}
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rec: CollegeRecommendation | null;
+
+  // Shortlist wiring
+  isSaved: boolean;
+  status: CollegeStatus;
+  notes: string;
+
+  onSave: () => void;
+  onStatusChange: (s: CollegeStatus) => void;
+  onNotesChange: (notes: string) => void;
 };
 
-export default function CollegeDetailsDrawer({ open, onOpenChange, rec }: Props) {
+export default function CollegeDetailsDrawer({
+  open,
+  onOpenChange,
+  rec,
+  isSaved,
+  status,
+  notes,
+  onSave,
+  onStatusChange,
+  onNotesChange,
+}: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -60,23 +88,88 @@ export default function CollegeDetailsDrawer({ open, onOpenChange, rec }: Props)
             </SheetHeader>
 
             <div className="mt-6 space-y-6">
-              <div>
-                <h4 className="font-semibold text-sm mb-2">Estimated Cost</h4>
-                <p className="text-2xl font-bold">
+              <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Shortlist</h4>
+                  <Badge variant={isSaved ? "default" : "outline"}>
+                    {isSaved ? statusLabel(status) : "Not saved"}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={isSaved ? "outline" : "default"}
+                    onClick={onSave}
+                    disabled={isSaved}
+                  >
+                    {isSaved ? "Saved" : "Save to Shortlist"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={status === "interested" ? "default" : "outline"}
+                    onClick={() => onStatusChange("interested")}
+                    disabled={!isSaved}
+                  >
+                    Interested
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={status === "applying" ? "default" : "outline"}
+                    onClick={() => onStatusChange("applying")}
+                    disabled={!isSaved}
+                  >
+                    Applying
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={status === "applied" ? "default" : "outline"}
+                    onClick={() => onStatusChange("applied")}
+                    disabled={!isSaved}
+                  >
+                    Applied
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={status === "not_now" ? "default" : "outline"}
+                    onClick={() => onStatusChange("not_now")}
+                    disabled={!isSaved}
+                  >
+                    Not Now
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Notes</h4>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => onNotesChange(e.target.value)}
+                    placeholder="Add notes (why you like it, what to research, visit plan, etc.)"
+                    disabled={!isSaved}
+                  />
+                  {!isSaved ? (
+                    <p className="text-xs text-muted-foreground">
+                      Save to shortlist to enable status and notes.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="text-sm font-medium">Estimated Cost</div>
+                <div className="text-2xl font-semibold">
                   {currency(rec.estimatedCost?.totalCostOfAttendance)}
-                </p>
+                </div>
                 {rec.estimatedCost?.notes ? (
-                  <p className="text-sm text-muted-foreground mt-1">{rec.estimatedCost.notes}</p>
+                  <div className="text-sm text-muted-foreground">{rec.estimatedCost.notes}</div>
                 ) : null}
               </div>
 
-              <Separator />
-
-              <div>
-                <h4 className="font-semibold text-sm mb-2">Why it matches</h4>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Why it matches</div>
+                <ul className="list-disc pl-5 space-y-1">
                   {(rec.reasons ?? []).map((x, idx) => (
-                    <li key={idx}>
+                    <li key={idx} className="text-sm">
                       {x}
                     </li>
                   ))}
@@ -86,11 +179,11 @@ export default function CollegeDetailsDrawer({ open, onOpenChange, rec }: Props)
               {rec.risks?.length ? (
                 <>
                   <Separator />
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Risks / Watch-outs</h4>
-                    <ul className="list-disc list-inside text-sm text-destructive space-y-1">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Risks / Watch-outs</div>
+                    <ul className="list-disc pl-5 space-y-1">
                       {rec.risks.map((x, idx) => (
-                        <li key={idx}>
+                        <li key={idx} className="text-sm text-destructive">
                           {x}
                         </li>
                       ))}
@@ -102,23 +195,26 @@ export default function CollegeDetailsDrawer({ open, onOpenChange, rec }: Props)
               {rec.deadlines ? (
                 <>
                   <Separator />
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Deadlines</h4>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Deadlines</div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       {rec.deadlines.earlyAction ? (
-                        <p>
-                          <span className="font-medium">Early Action:</span> {rec.deadlines.earlyAction}
-                        </p>
+                        <div>
+                          Early Action:{" "}
+                          <span className="text-foreground">{rec.deadlines.earlyAction}</span>
+                        </div>
                       ) : null}
                       {rec.deadlines.earlyDecision ? (
-                        <p>
-                          <span className="font-medium">Early Decision:</span> {rec.deadlines.earlyDecision}
-                        </p>
+                        <div>
+                          Early Decision:{" "}
+                          <span className="text-foreground">{rec.deadlines.earlyDecision}</span>
+                        </div>
                       ) : null}
                       {rec.deadlines.regularDecision ? (
-                        <p>
-                          <span className="font-medium">Regular Decision:</span> {rec.deadlines.regularDecision}
-                        </p>
+                        <div>
+                          Regular Decision:{" "}
+                          <span className="text-foreground">{rec.deadlines.regularDecision}</span>
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -128,19 +224,20 @@ export default function CollegeDetailsDrawer({ open, onOpenChange, rec }: Props)
               <Separator />
 
               <div className="flex gap-2">
-                <Button className="flex-1">Save to Shortlist</Button>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
                   Close
                 </Button>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Next: wire "Save to Shortlist" to persistence (local state → backend).
+                Stored locally for now. Next step: persist to backend per user account.
               </p>
             </div>
           </>
         ) : (
-          <p className="text-muted-foreground">Select a college to view details.</p>
+          <div className="py-10 text-sm text-muted-foreground">
+            Select a college to view details.
+          </div>
         )}
       </SheetContent>
     </Sheet>
