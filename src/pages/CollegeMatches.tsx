@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import CollegeDetailsDrawer from "../components/CollegeDetailsDrawer";
+
 type SortKey = "collegeName" | "overallScore" | "fitBand";
 type SortDir = "asc" | "desc";
 
@@ -57,6 +59,9 @@ export default function CollegeMatches() {
 
   const [sortKey, setSortKey] = React.useState<SortKey>("overallScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+
+  const [selectedRec, setSelectedRec] = React.useState<CollegeRecommendation | null>(null);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -182,7 +187,14 @@ export default function CollegeMatches() {
               </TableHeader>
               <TableBody>
                 {sorted.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow 
+                    key={r.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setSelectedRec(r);
+                      setDrawerOpen(true);
+                    }}
+                  >
                     <TableCell className="font-medium">{r.collegeName}</TableCell>
 
                     <TableCell>
@@ -238,6 +250,12 @@ export default function CollegeMatches() {
           </p>
         </CardContent>
       </Card>
+
+      <CollegeDetailsDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        rec={selectedRec}
+      />
     </div>
   );
 }
