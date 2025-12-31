@@ -12,6 +12,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import WaitlistPage from "./pages/WaitlistPage";
 import Dashboard from "./pages/Dashboard";
+import CollegeMatches from "./pages/CollegeMatches";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,7 +36,7 @@ const App = () => (
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<Dashboard />} />
-              <Route path="/colleges" element={<Dashboard />} />
+              <Route path="/colleges" element={<CollegeMatches />} />
               <Route path="/scholarships" element={<Dashboard />} />
               <Route path="/essays" element={<Dashboard />} />
               <Route path="/verification" element={<Dashboard />} />
