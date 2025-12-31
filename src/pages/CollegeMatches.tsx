@@ -2,6 +2,14 @@ import * as React from "react";
 import { getMockCollegeRecommendations } from "../services/mockIntelligence";
 import { CollegeRecommendation } from "../types/college";
 import { FitBand } from "../types/index";
+import { ShortlistItem, CollegeStatus } from "../types/shortlist";
+import {
+  loadShortlist,
+  saveShortlist,
+  upsertShortlistItem,
+  setStatus,
+  setNotes,
+} from "../services/shortlistService";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +71,16 @@ export default function CollegeMatches() {
   const [selected, setSelected] = React.useState<CollegeRecommendation | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
+  // Shortlist state
+  const [shortlist, setShortlist] = React.useState<Record<string, ShortlistItem>>(() =>
+    loadShortlist()
+  );
+
+  // Persist shortlist changes
+  React.useEffect(() => {
+    saveShortlist(shortlist);
+  }, [shortlist]);
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((r) => {
@@ -90,6 +108,27 @@ export default function CollegeMatches() {
       setSortKey(nextKey);
       setSortDir("asc");
     }
+  }
+
+  // Shortlist handlers for drawer
+  const selectedItem = selected ? shortlist[selected.id] : undefined;
+  const isSaved = !!selectedItem;
+  const currentStatus: CollegeStatus = selectedItem?.status ?? "interested";
+  const currentNotes: string = selectedItem?.notes ?? "";
+
+  function handleSave() {
+    if (!selected) return;
+    setShortlist((prev) => upsertShortlistItem(prev, selected.id, selected.collegeName));
+  }
+
+  function handleStatusChange(s: CollegeStatus) {
+    if (!selected) return;
+    setShortlist((prev) => setStatus(prev, selected.id, s));
+  }
+
+  function handleNotesChange(notes: string) {
+    if (!selected) return;
+    setShortlist((prev) => setNotes(prev, selected.id, notes));
   }
 
   return (
@@ -195,7 +234,14 @@ export default function CollegeMatches() {
                       setDrawerOpen(true);
                     }}
                   >
-                    <TableCell className="font-medium">{r.collegeName}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.collegeName}
+                      {shortlist[r.id] && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Saved
+                        </Badge>
+                      )}
+                    </TableCell>
 
                     <TableCell>
                       <Badge variant={fitBandBadgeVariant(r.fitBand)}>
@@ -255,6 +301,12 @@ export default function CollegeMatches() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         rec={selected}
+        isSaved={isSaved}
+        status={currentStatus}
+        notes={currentNotes}
+        onSave={handleSave}
+        onStatusChange={handleStatusChange}
+        onNotesChange={handleNotesChange}
       />
     </div>
   );
