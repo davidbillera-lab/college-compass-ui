@@ -60,7 +60,7 @@ export default function CollegeMatches() {
   const [sortKey, setSortKey] = React.useState<SortKey>("overallScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
 
-  const [selectedRec, setSelectedRec] = React.useState<CollegeRecommendation | null>(null);
+  const [selected, setSelected] = React.useState<CollegeRecommendation | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const filtered = React.useMemo(() => {
@@ -191,7 +191,7 @@ export default function CollegeMatches() {
                     key={r.id} 
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => {
-                      setSelectedRec(r);
+                      setSelected(r);
                       setDrawerOpen(true);
                     }}
                   >
@@ -254,7 +254,7 @@ export default function CollegeMatches() {
       <CollegeDetailsDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        rec={selectedRec}
+        rec={selected}
       />
     </div>
   );
