@@ -164,6 +164,13 @@ export default function CollegeMatches() {
                 >
                   Reach
                 </Button>
+                <Button
+                  size="sm"
+                  variant={shortlistedOnly ? "default" : "outline"}
+                  onClick={() => setShortlistedOnly((v) => !v)}
+                >
+                  Shortlisted
+                </Button>
               </div>
             </div>
           </div>
