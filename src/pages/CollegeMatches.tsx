@@ -273,8 +273,20 @@ export default function CollegeMatches() {
                     </TableCell>
                     <TableCell>
                       {shortlist[r.collegeId] ? (
-                        <Badge variant="outline">
-                          {shortlist[r.collegeId].status.replace("_", " ")}
+                        <Badge
+                          variant={
+                            shortlist[r.collegeId].status === "interested"
+                              ? "secondary"
+                              : shortlist[r.collegeId].status === "applying"
+                              ? "default"
+                              : shortlist[r.collegeId].status === "applied"
+                              ? "outline"
+                              : "destructive"
+                          }
+                        >
+                          {shortlist[r.collegeId].status
+                            .replace("_", " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
