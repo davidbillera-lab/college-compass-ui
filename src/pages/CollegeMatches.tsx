@@ -110,26 +110,9 @@ export default function CollegeMatches() {
     }
   }
 
-  // Shortlist handlers for drawer
-  const selectedItem = selected ? shortlist[selected.id] : undefined;
-  const isSaved = !!selectedItem;
-  const currentStatus: CollegeStatus = selectedItem?.status ?? "interested";
-  const currentNotes: string = selectedItem?.notes ?? "";
-
-  function handleSave() {
-    if (!selected) return;
-    setShortlist((prev) => upsertShortlistItem(prev, selected.id, selected.collegeName));
-  }
-
-  function handleStatusChange(s: CollegeStatus) {
-    if (!selected) return;
-    setShortlist((prev) => setStatus(prev, selected.id, s));
-  }
-
-  function handleNotesChange(notes: string) {
-    if (!selected) return;
-    setShortlist((prev) => setNotes(prev, selected.id, notes));
-  }
+  // Shortlist helpers
+  const selectedId = selected?.collegeId ?? "";
+  const saved = !!(selectedId && shortlist[selectedId]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -301,12 +284,23 @@ export default function CollegeMatches() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         rec={selected}
-        isSaved={isSaved}
-        status={currentStatus}
-        notes={currentNotes}
-        onSave={handleSave}
-        onStatusChange={handleStatusChange}
-        onNotesChange={handleNotesChange}
+        isSaved={saved}
+        status={(saved ? shortlist[selectedId].status : "interested") as CollegeStatus}
+        notes={saved ? shortlist[selectedId].notes ?? "" : ""}
+        onSave={() => {
+          if (!selected) return;
+          setShortlist((m: any) =>
+            upsertShortlistItem(m, selected.collegeId, selected.collegeName, "interested")
+          );
+        }}
+        onStatusChange={(s) => {
+          if (!selected) return;
+          setShortlist((m: any) => setStatus(m, selected.collegeId, s));
+        }}
+        onNotesChange={(n) => {
+          if (!selected) return;
+          setShortlist((m: any) => setNotes(m, selected.collegeId, n));
+        }}
       />
     </div>
   );
