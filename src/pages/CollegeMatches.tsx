@@ -215,6 +215,7 @@ export default function CollegeMatches() {
 
                   <TableHead>Est. Cost</TableHead>
                   <TableHead>Why it matches</TableHead>
+                  <TableHead className="w-[14%]">Shortlist</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
