@@ -64,6 +64,7 @@ export default function CollegeMatches() {
 
   const [search, setSearch] = React.useState("");
   const [bandFilter, setBandFilter] = React.useState<string>("all");
+  const [shortlistedOnly, setShortlistedOnly] = React.useState(false);
 
   const [sortKey, setSortKey] = React.useState<SortKey>("overallScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
