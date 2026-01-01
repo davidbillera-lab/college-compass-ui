@@ -88,9 +88,11 @@ export default function CollegeMatches() {
       const matchesSearch =
         q.length === 0 || r.collegeName.toLowerCase().includes(q);
       const matchesBand = bandFilter === "all" || r.fitBand === bandFilter;
-      return matchesSearch && matchesBand;
+      const isShortlisted = !!shortlist[r.collegeId];
+      const matchesShortlisted = !shortlistedOnly || isShortlisted;
+      return matchesSearch && matchesBand && matchesShortlisted;
     });
-  }, [items, search, bandFilter]);
+  }, [items, search, bandFilter, shortlistedOnly, shortlist]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
