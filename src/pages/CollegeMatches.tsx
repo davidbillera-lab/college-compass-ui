@@ -271,12 +271,21 @@ export default function CollegeMatches() {
                         </p>
                       ) : null}
                     </TableCell>
+                    <TableCell>
+                      {shortlist[r.collegeId] ? (
+                        <Badge variant="outline">
+                          {shortlist[r.collegeId].status.replace("_", " ")}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
 
                 {sorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No matches found.
                     </TableCell>
                   </TableRow>
