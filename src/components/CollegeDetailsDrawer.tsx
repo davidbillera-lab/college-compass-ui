@@ -48,7 +48,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   rec: CollegeRecommendation | null;
 
-  // Shortlist wiring
+  // NEW: shortlist wiring
   isSaved: boolean;
   status: CollegeStatus;
   notes: string;
@@ -105,6 +105,7 @@ export default function CollegeDetailsDrawer({
                   >
                     {isSaved ? "Saved" : "Save to Shortlist"}
                   </Button>
+
                   <Button
                     size="sm"
                     variant={status === "interested" ? "default" : "outline"}
@@ -183,7 +184,7 @@ export default function CollegeDetailsDrawer({
                     <div className="text-sm font-medium">Risks / Watch-outs</div>
                     <ul className="list-disc pl-5 space-y-1">
                       {rec.risks.map((x, idx) => (
-                        <li key={idx} className="text-sm text-destructive">
+                        <li key={idx} className="text-sm">
                           {x}
                         </li>
                       ))}
