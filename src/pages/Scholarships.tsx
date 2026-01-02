@@ -246,11 +246,37 @@ export default function Scholarships() {
                     </TableCell>
                     <TableCell>
                       {tracked[s.scholarshipId] ? (
-                        <Badge variant="outline">
-                          {tracked[s.scholarshipId].status.replace("_", " ")}
-                        </Badge>
+                        <button
+                          type="button"
+                          className="inline-flex"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const current = tracked[s.scholarshipId].status;
+                            const next = nextScholarshipStatus(current);
+                            setTracked((m: any) => setScholarshipStatus(m, s.scholarshipId, next));
+                          }}
+                          title="Click to change tracking status"
+                        >
+                          <Badge variant="outline">
+                            {tracked[s.scholarshipId].status
+                              .replace("_", " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </Badge>
+                        </button>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTracked((m: any) =>
+                              upsertScholarship(m, s.scholarshipId, s.scholarshipName, "to_apply")
+                            );
+                          }}
+                          title="Click to track this scholarship"
+                        >
+                          —
+                        </button>
                       )}
                     </TableCell>
                   </TableRow>
