@@ -281,16 +281,20 @@ export default function Scholarships() {
                     <TableCell className="text-right font-semibold">{s.matchScore}</TableCell>
 
                     <TableCell>
-                      {s.deadline ? (
-                        <>
-                          <Badge variant={urgencyVariant(daysUntil(s.deadline) ?? 999)}>
-                            {urgencyLabel(daysUntil(s.deadline) ?? 999)}
-                          </Badge>
-                          <div className="text-xs text-muted-foreground mt-1">{s.deadline}</div>
-                        </>
-                      ) : (
-                        "—"
-                      )}
+                      <div className="flex items-center gap-2">
+                        <span>{s.deadline ?? "—"}</span>
+                        {(() => {
+                          const d = daysUntil(s.deadline);
+                          if (d == null) return null;
+                          // only show badge when within 30 days or overdue
+                          if (d > 30) return null;
+                          return (
+                            <Badge variant={urgencyVariant(d)} className="whitespace-nowrap">
+                              {urgencyLabel(d)}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
                     </TableCell>
 
                     <TableCell>
