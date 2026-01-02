@@ -135,6 +135,41 @@ export default function Scholarships() {
     });
   }, [items, search, priorityFilter, trackedOnly, urgentOnly, tracked]);
 
+  const urgencyStats = React.useMemo(() => {
+    let overdue = 0;
+    let due7 = 0;
+    let due14 = 0;
+
+    for (const s of items) {
+      const d = daysUntil(s.deadline);
+      if (d == null) continue;
+      if (d < 0) overdue += 1;
+      if (d >= 0 && d <= 7) due7 += 1;
+      if (d >= 0 && d <= 14) due14 += 1;
+    }
+
+    return { overdue, due7, due14 };
+  }, [items]);
+
+  const todaysPriorities = React.useMemo(() => {
+    const ranked = [...items]
+      .map((s) => {
+        const d = daysUntil(s.deadline);
+        const dayScore = d == null ? 9999 : d;
+        const priorityBoost = s.priority === "high" ? -5 : s.priority === "medium" ? 0 : 5;
+        return { s, sortVal: dayScore + priorityBoost };
+      })
+      .sort((a, b) => a.sortVal - b.sortVal)
+      .map((x) => x.s);
+
+    const urgent = ranked.filter((s) => {
+      const d = daysUntil(s.deadline);
+      return d != null && d <= 14;
+    });
+
+    return urgent.slice(0, 3);
+  }, [items]);
+
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
     arr.sort((a, b) => {
