@@ -1,9 +1,11 @@
 import * as React from "react";
 import { ScholarshipMatch } from "../types/scholarship";
+import { ScholarshipStatus } from "../types/scholarshipTracking";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Sheet,
@@ -32,13 +34,40 @@ function priorityVariant(p: "low" | "medium" | "high"): "secondary" | "default" 
   return "destructive";
 }
 
+function trackingLabel(s: ScholarshipStatus) {
+  if (s === "to_apply") return "To Apply";
+  if (s === "drafting") return "Drafting";
+  if (s === "submitted") return "Submitted";
+  if (s === "won") return "Won";
+  return "Not Now";
+}
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   match: ScholarshipMatch | null;
+
+  // tracking wiring
+  isTracked: boolean;
+  status: ScholarshipStatus;
+  notes: string;
+
+  onTrack: () => void;
+  onStatusChange: (s: ScholarshipStatus) => void;
+  onNotesChange: (notes: string) => void;
 };
 
-export default function ScholarshipDetailsDrawer({ open, onOpenChange, match }: Props) {
+export default function ScholarshipDetailsDrawer({
+  open,
+  onOpenChange,
+  match,
+  isTracked,
+  status,
+  notes,
+  onTrack,
+  onStatusChange,
+  onNotesChange,
+}: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-[520px]">
@@ -57,6 +86,72 @@ export default function ScholarshipDetailsDrawer({ open, onOpenChange, match }: 
             </SheetHeader>
 
             <div className="mt-6 space-y-5">
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Tracking</div>
+                  <Badge variant={isTracked ? "default" : "secondary"}>
+                    {isTracked ? trackingLabel(status) : "Not tracked"}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={onTrack} disabled={isTracked} className="min-w-[160px]">
+                    {isTracked ? "Tracked" : "Track Scholarship"}
+                  </Button>
+
+                  <Button
+                    variant={status === "to_apply" ? "default" : "outline"}
+                    onClick={() => onStatusChange("to_apply")}
+                    disabled={!isTracked}
+                  >
+                    To Apply
+                  </Button>
+                  <Button
+                    variant={status === "drafting" ? "default" : "outline"}
+                    onClick={() => onStatusChange("drafting")}
+                    disabled={!isTracked}
+                  >
+                    Drafting
+                  </Button>
+                  <Button
+                    variant={status === "submitted" ? "default" : "outline"}
+                    onClick={() => onStatusChange("submitted")}
+                    disabled={!isTracked}
+                  >
+                    Submitted
+                  </Button>
+                  <Button
+                    variant={status === "won" ? "default" : "outline"}
+                    onClick={() => onStatusChange("won")}
+                    disabled={!isTracked}
+                  >
+                    Won
+                  </Button>
+                  <Button
+                    variant={status === "not_now" ? "default" : "outline"}
+                    onClick={() => onStatusChange("not_now")}
+                    disabled={!isTracked}
+                  >
+                    Not Now
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Notes</div>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => onNotesChange(e.target.value)}
+                    placeholder="Notes: requirements, docs needed, essay reuse, etc."
+                    disabled={!isTracked}
+                  />
+                  {!isTracked ? (
+                    <p className="text-xs text-muted-foreground">
+                      Track this scholarship to enable status and notes.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
               <div className="rounded-lg border p-4 space-y-2">
                 <div className="text-sm font-medium">Award</div>
                 <div className="text-2xl font-semibold">
@@ -81,14 +176,13 @@ export default function ScholarshipDetailsDrawer({ open, onOpenChange, match }: 
               <Separator />
 
               <div className="flex gap-2">
-                <Button className="w-full">Track Scholarship</Button>
                 <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
                   Close
                 </Button>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Next: add tracking status + notes + "application packet" checklist.
+                Stored locally for now. Next step: persist to backend per user account.
               </p>
             </div>
           </>
