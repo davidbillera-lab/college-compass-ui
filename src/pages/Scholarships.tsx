@@ -1,6 +1,14 @@
 import * as React from "react";
 import { getMockScholarshipMatches } from "../services/mockIntelligence";
 import { ScholarshipMatch } from "../types/scholarship";
+import { ScholarshipTrackingItem, ScholarshipStatus } from "../types/scholarshipTracking";
+import {
+  loadScholarships,
+  saveScholarships,
+  upsertScholarship,
+  setScholarshipStatus,
+  setScholarshipNotes,
+} from "../services/scholarshipTrackingStore";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +59,7 @@ export default function Scholarships() {
 
   const [search, setSearch] = React.useState("");
   const [priorityFilter, setPriorityFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
+  const [trackedOnly, setTrackedOnly] = React.useState(false);
 
   const [sortKey, setSortKey] = React.useState<SortKey>("matchScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
@@ -58,14 +67,26 @@ export default function Scholarships() {
   const [selected, setSelected] = React.useState<ScholarshipMatch | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
+  // Tracking state
+  const [tracked, setTracked] = React.useState<Record<string, ScholarshipTrackingItem>>(() =>
+    loadScholarships()
+  );
+
+  // Persist tracking changes
+  React.useEffect(() => {
+    saveScholarships(tracked);
+  }, [tracked]);
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((s) => {
       const matchesSearch = q.length === 0 || s.scholarshipName.toLowerCase().includes(q);
       const matchesPriority = priorityFilter === "all" || s.priority === priorityFilter;
-      return matchesSearch && matchesPriority;
+      const isTracked = !!tracked[s.scholarshipId];
+      const matchesTracked = !trackedOnly || isTracked;
+      return matchesSearch && matchesPriority && matchesTracked;
     });
-  }, [items, search, priorityFilter]);
+  }, [items, search, priorityFilter, trackedOnly, tracked]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -86,6 +107,10 @@ export default function Scholarships() {
       setSortDir("asc");
     }
   }
+
+  // Tracking helpers
+  const selectedId = selected?.scholarshipId ?? "";
+  const isTracked = !!(selectedId && tracked[selectedId]);
 
   return (
     <div className="p-6 space-y-6">
@@ -108,28 +133,39 @@ export default function Scholarships() {
 
             <div className="flex gap-2">
               <Button
+                size="sm"
                 variant={priorityFilter === "all" ? "default" : "outline"}
                 onClick={() => setPriorityFilter("all")}
               >
                 All
               </Button>
               <Button
+                size="sm"
                 variant={priorityFilter === "high" ? "default" : "outline"}
                 onClick={() => setPriorityFilter("high")}
               >
                 High
               </Button>
               <Button
+                size="sm"
                 variant={priorityFilter === "medium" ? "default" : "outline"}
                 onClick={() => setPriorityFilter("medium")}
               >
                 Medium
               </Button>
               <Button
+                size="sm"
                 variant={priorityFilter === "low" ? "default" : "outline"}
                 onClick={() => setPriorityFilter("low")}
               >
                 Low
+              </Button>
+              <Button
+                size="sm"
+                variant={trackedOnly ? "default" : "outline"}
+                onClick={() => setTrackedOnly((v) => !v)}
+              >
+                Tracked
               </Button>
             </div>
           </div>
@@ -178,7 +214,14 @@ export default function Scholarships() {
                       setDrawerOpen(true);
                     }}
                   >
-                    <TableCell className="font-medium">{s.scholarshipName}</TableCell>
+                    <TableCell className="font-medium">
+                      {s.scholarshipName}
+                      {tracked[s.scholarshipId] && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Tracked
+                        </Badge>
+                      )}
+                    </TableCell>
 
                     <TableCell>
                       <Badge variant={priorityVariant(s.priority)}>{s.priority.toUpperCase()}</Badge>
@@ -217,7 +260,28 @@ export default function Scholarships() {
         </CardContent>
       </Card>
 
-      <ScholarshipDetailsDrawer open={drawerOpen} onOpenChange={setDrawerOpen} match={selected} />
+      <ScholarshipDetailsDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        match={selected}
+        isTracked={isTracked}
+        status={(isTracked ? tracked[selectedId].status : "to_apply") as ScholarshipStatus}
+        notes={isTracked ? tracked[selectedId].notes ?? "" : ""}
+        onTrack={() => {
+          if (!selected) return;
+          setTracked((m) =>
+            upsertScholarship(m, selected.scholarshipId, selected.scholarshipName, "to_apply")
+          );
+        }}
+        onStatusChange={(s) => {
+          if (!selected) return;
+          setTracked((m) => setScholarshipStatus(m, selected.scholarshipId, s));
+        }}
+        onNotesChange={(n) => {
+          if (!selected) return;
+          setTracked((m) => setScholarshipNotes(m, selected.scholarshipId, n));
+        }}
+      />
     </div>
   );
 }
