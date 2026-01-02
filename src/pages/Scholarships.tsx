@@ -140,7 +140,13 @@ export default function Scholarships() {
     arr.sort((a, b) => {
       if (sortKey === "scholarshipName") return compare(a.scholarshipName, b.scholarshipName, sortDir);
       if (sortKey === "priority") return compare(a.priority, b.priority, sortDir);
-      if (sortKey === "deadline") return compare(a.deadline ?? "", b.deadline ?? "", sortDir);
+      if (sortKey === "deadline") {
+        const ad = daysUntil(a.deadline);
+        const bd = daysUntil(b.deadline);
+        const aVal = ad == null ? Number.POSITIVE_INFINITY : ad;
+        const bVal = bd == null ? Number.POSITIVE_INFINITY : bd;
+        return compare(aVal, bVal, sortDir);
+      }
       return compare(a.matchScore, b.matchScore, sortDir);
     });
     return arr;
