@@ -57,6 +57,13 @@ function compare(a: string | number, b: string | number, dir: SortDir) {
   return 0;
 }
 
+function nextStatus(s: "interested" | "applying" | "applied" | "not_now") {
+  if (s === "interested") return "applying";
+  if (s === "applying") return "applied";
+  if (s === "applied") return "not_now";
+  return "interested";
+}
+
 export default function CollegeMatches() {
   const [items] = React.useState<CollegeRecommendation[]>(
     () => getMockCollegeRecommendations()
