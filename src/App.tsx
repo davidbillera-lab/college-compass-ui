@@ -1,5 +1,5 @@
-import CollegeMatches from "./pages/CollegeMatches";
+import Scholarships from "./pages/Scholarships";
 
 export default function App() {
-  return <CollegeMatches />;
+  return <Scholarships />;
 }
