@@ -64,6 +64,41 @@ function nextScholarshipStatus(
   return "to_apply";
 }
 
+function daysUntil(deadline?: string): number | null {
+  if (!deadline) return null; // ISODate "YYYY-MM-DD"
+  const [y, m, d] = deadline.split("-").map(Number);
+  if (!y || !m || !d) return null;
+
+  const due = new Date(y, m - 1, d);
+  // normalize to midnight local time for consistent day diff
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((due.getTime() - today.getTime()) / msPerDay);
+}
+
+function urgencyLabel(days: number): string {
+  if (days < 0) return "Overdue";
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days} days`;
+}
+
+function urgencyVariant(days: number): "destructive" | "default" | "secondary" | "outline" {
+  if (days < 0) return "destructive";
+  if (days <= 3) return "destructive";
+  if (days <= 14) return "default";
+  if (days <= 30) return "secondary";
+  return "outline";
+}
+
+function isUrgentDeadline(deadline?: string): boolean {
+  const d = daysUntil(deadline);
+  if (d == null) return false;
+  return d <= 14; // urgent window: 2 weeks
+}
+
 export default function Scholarships() {
   const [items] = React.useState<ScholarshipMatch[]>(() => getMockScholarshipMatches());
 
