@@ -236,22 +236,8 @@ export default function Scholarships() {
                     </TableCell>
                     <TableCell>
                       {tracked[s.scholarshipId] ? (
-                        <Badge
-                          variant={
-                            tracked[s.scholarshipId].status === "to_apply"
-                              ? "secondary"
-                              : tracked[s.scholarshipId].status === "drafting"
-                              ? "default"
-                              : tracked[s.scholarshipId].status === "submitted"
-                              ? "outline"
-                              : tracked[s.scholarshipId].status === "won"
-                              ? "default"
-                              : "destructive"
-                          }
-                        >
-                          {tracked[s.scholarshipId].status
-                            .replace("_", " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
+                        <Badge variant="outline">
+                          {tracked[s.scholarshipId].status.replace("_", " ")}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
