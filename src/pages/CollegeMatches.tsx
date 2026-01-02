@@ -280,23 +280,47 @@ export default function CollegeMatches() {
                     </TableCell>
                     <TableCell>
                       {shortlist[r.collegeId] ? (
-                        <Badge
-                          variant={
-                            shortlist[r.collegeId].status === "interested"
-                              ? "secondary"
-                              : shortlist[r.collegeId].status === "applying"
-                              ? "default"
-                              : shortlist[r.collegeId].status === "applied"
-                              ? "outline"
-                              : "destructive"
-                          }
+                        <button
+                          type="button"
+                          className="inline-flex"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const current = shortlist[r.collegeId].status;
+                            const next = nextStatus(current);
+                            setShortlist((m: any) => setStatus(m, r.collegeId, next));
+                          }}
+                          title="Click to change status"
                         >
-                          {shortlist[r.collegeId].status
-                            .replace("_", " ")
-                            .replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Badge>
+                          <Badge
+                            variant={
+                              shortlist[r.collegeId].status === "interested"
+                                ? "secondary"
+                                : shortlist[r.collegeId].status === "applying"
+                                ? "default"
+                                : shortlist[r.collegeId].status === "applied"
+                                ? "outline"
+                                : "destructive"
+                            }
+                          >
+                            {shortlist[r.collegeId].status
+                              .replace("_", " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </Badge>
+                        </button>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShortlist((m: any) =>
+                              upsertShortlistItem(m, r.collegeId, r.collegeName, "interested")
+                            );
+                          }}
+                          title="Click to add to shortlist"
+                        >
+                          —
+                        </button>
                       )}
                     </TableCell>
                   </TableRow>
