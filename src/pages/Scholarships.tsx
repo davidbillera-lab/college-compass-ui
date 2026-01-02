@@ -8,7 +8,7 @@ import {
   upsertScholarship,
   setScholarshipStatus,
   setScholarshipNotes,
-} from "../services/scholarshipTrackingStore";
+} from "../services/scholarshipStore";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
