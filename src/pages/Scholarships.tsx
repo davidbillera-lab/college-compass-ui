@@ -201,6 +201,7 @@ export default function Scholarships() {
                   </TableHead>
 
                   <TableHead className="w-[22%]">Award</TableHead>
+                  <TableHead className="w-[14%]">Tracking</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -214,14 +215,7 @@ export default function Scholarships() {
                       setDrawerOpen(true);
                     }}
                   >
-                    <TableCell className="font-medium">
-                      {s.scholarshipName}
-                      {tracked[s.scholarshipId] && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          Tracked
-                        </Badge>
-                      )}
-                    </TableCell>
+                    <TableCell className="font-medium">{s.scholarshipName}</TableCell>
 
                     <TableCell>
                       <Badge variant={priorityVariant(s.priority)}>{s.priority.toUpperCase()}</Badge>
@@ -240,12 +234,35 @@ export default function Scholarships() {
                         Competition: {s.competitivenessEstimate}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      {tracked[s.scholarshipId] ? (
+                        <Badge
+                          variant={
+                            tracked[s.scholarshipId].status === "to_apply"
+                              ? "secondary"
+                              : tracked[s.scholarshipId].status === "drafting"
+                              ? "default"
+                              : tracked[s.scholarshipId].status === "submitted"
+                              ? "outline"
+                              : tracked[s.scholarshipId].status === "won"
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {tracked[s.scholarshipId].status
+                            .replace("_", " ")
+                            .replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
 
                 {sorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                       No scholarships found.
                     </TableCell>
                   </TableRow>
