@@ -267,6 +267,62 @@ export default function Scholarships() {
         </CardHeader>
 
         <CardContent>
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={urgencyStats.overdue > 0 ? "destructive" : "outline"}>
+                Overdue: {urgencyStats.overdue}
+              </Badge>
+              <Badge variant={urgencyStats.due7 > 0 ? "destructive" : "outline"}>
+                Due ≤ 7 days: {urgencyStats.due7}
+              </Badge>
+              <Badge variant={urgencyStats.due14 > 0 ? "default" : "outline"}>
+                Due ≤ 14 days: {urgencyStats.due14}
+              </Badge>
+            </div>
+
+            {todaysPriorities.length > 0 ? (
+              <div className="rounded-lg border p-3">
+                <div className="text-sm font-medium mb-2">Today's Priorities</div>
+                <div className="space-y-2">
+                  {todaysPriorities.map((s) => {
+                    const d = daysUntil(s.deadline);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="w-full text-left rounded-md px-3 py-2 hover:bg-muted transition"
+                        onClick={() => {
+                          setSelected(s);
+                          setDrawerOpen(true);
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-medium">{s.scholarshipName}</div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={priorityVariant(s.priority)}>{s.priority.toUpperCase()}</Badge>
+                            {d != null ? (
+                              <Badge variant={urgencyVariant(d)} className="whitespace-nowrap">
+                                {urgencyLabel(d)}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Match Score: {s.matchScore} · Eligibility: {s.eligibilityConfidence} · Competition:{" "}
+                          {s.competitivenessEstimate}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                No scholarships due within 14 days. Nice work.
+              </div>
+            )}
+          </div>
+
           <div className="rounded-lg border overflow-hidden">
             <Table>
               <TableHeader>
