@@ -54,6 +54,16 @@ function formatMoneyRange(min?: number, max?: number) {
   return `Up to ${fmt(max as number)}`;
 }
 
+function nextScholarshipStatus(
+  s: "to_apply" | "drafting" | "submitted" | "won" | "not_now"
+) {
+  if (s === "to_apply") return "drafting";
+  if (s === "drafting") return "submitted";
+  if (s === "submitted") return "won";
+  if (s === "won") return "not_now";
+  return "to_apply";
+}
+
 export default function Scholarships() {
   const [items] = React.useState<ScholarshipMatch[]>(() => getMockScholarshipMatches());
 
