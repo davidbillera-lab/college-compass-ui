@@ -272,17 +272,17 @@ export default function Scholarships() {
         notes={isTracked ? tracked[selectedId].notes ?? "" : ""}
         onTrack={() => {
           if (!selected) return;
-          setTracked((m) =>
+          setTracked((m: any) =>
             upsertScholarship(m, selected.scholarshipId, selected.scholarshipName, "to_apply")
           );
         }}
         onStatusChange={(s) => {
           if (!selected) return;
-          setTracked((m) => setScholarshipStatus(m, selected.scholarshipId, s));
+          setTracked((m: any) => setScholarshipStatus(m, selected.scholarshipId, s));
         }}
         onNotesChange={(n) => {
           if (!selected) return;
-          setTracked((m) => setScholarshipNotes(m, selected.scholarshipId, n));
+          setTracked((m: any) => setScholarshipNotes(m, selected.scholarshipId, n));
         }}
       />
     </div>
