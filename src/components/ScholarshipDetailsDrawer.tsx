@@ -13,20 +13,17 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 
-function formatMoney(n?: number) {
-  if (n == null) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
 function formatMoneyRange(min?: number, max?: number) {
   if (min == null && max == null) return "—";
-  if (min != null && max != null) return `${formatMoney(min)}–${formatMoney(max)}`;
-  if (min != null) return `${formatMoney(min)}+`;
-  return `Up to ${formatMoney(max as number)}`;
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
+  if (min != null && max != null) return `${fmt(min)}–${fmt(max)}`;
+  if (min != null) return `${fmt(min)}+`;
+  return `Up to ${fmt(max as number)}`;
 }
 
 function priorityVariant(p: "low" | "medium" | "high"): "secondary" | "default" | "destructive" {
@@ -41,45 +38,34 @@ type Props = {
   match: ScholarshipMatch | null;
 };
 
-export default function ScholarshipDetailsDrawer({
-  open,
-  onOpenChange,
-  match,
-}: Props) {
+export default function ScholarshipDetailsDrawer({ open, onOpenChange, match }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-[520px]">
         {match ? (
           <>
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                {match.scholarshipName}
-                <Badge variant={priorityVariant(match.priority)}>
-                  {match.priority.toUpperCase()}
-                </Badge>
+              <SheetTitle className="flex items-start justify-between gap-3">
+                <span>{match.scholarshipName}</span>
+                <Badge variant={priorityVariant(match.priority)}>{match.priority.toUpperCase()}</Badge>
               </SheetTitle>
               <SheetDescription>
-                Score: {match.matchScore} · Eligibility: {match.eligibilityConfidence}
+                Score: <span className="font-medium">{match.matchScore}</span> · Eligibility:{" "}
+                <span className="font-medium">{match.eligibilityConfidence}</span> · Competition:{" "}
+                <span className="font-medium">{match.competitivenessEstimate}</span>
               </SheetDescription>
             </SheetHeader>
 
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 space-y-5">
               <div className="rounded-lg border p-4 space-y-2">
-                <div className="text-sm font-medium">Award Range</div>
+                <div className="text-sm font-medium">Award</div>
                 <div className="text-2xl font-semibold">
                   {formatMoneyRange(match.awardRange?.min, match.awardRange?.max)}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Competition: {match.competitivenessEstimate}
+                  Deadline: <span className="text-foreground">{match.deadline ?? "—"}</span>
                 </div>
               </div>
-
-              {match.deadline && (
-                <div className="rounded-lg border p-4 space-y-2">
-                  <div className="text-sm font-medium">Deadline</div>
-                  <div className="text-lg font-semibold">{match.deadline}</div>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <div className="text-sm font-medium">Why it matches</div>
@@ -95,13 +81,14 @@ export default function ScholarshipDetailsDrawer({
               <Separator />
 
               <div className="flex gap-2">
+                <Button className="w-full">Track Scholarship</Button>
                 <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
                   Close
                 </Button>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Next: tracking status + autofill packet builder.
+                Next: add tracking status + notes + "application packet" checklist.
               </p>
             </div>
           </>
