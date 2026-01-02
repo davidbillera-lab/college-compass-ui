@@ -105,6 +105,7 @@ export default function Scholarships() {
   const [search, setSearch] = React.useState("");
   const [priorityFilter, setPriorityFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
   const [trackedOnly, setTrackedOnly] = React.useState(false);
+  const [urgentOnly, setUrgentOnly] = React.useState(false);
 
   const [sortKey, setSortKey] = React.useState<SortKey>("matchScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
@@ -129,9 +130,10 @@ export default function Scholarships() {
       const matchesPriority = priorityFilter === "all" || s.priority === priorityFilter;
       const isTracked = !!tracked[s.scholarshipId];
       const matchesTracked = !trackedOnly || isTracked;
-      return matchesSearch && matchesPriority && matchesTracked;
+      const matchesUrgent = !urgentOnly || isUrgentDeadline(s.deadline);
+      return matchesSearch && matchesPriority && matchesTracked && matchesUrgent;
     });
-  }, [items, search, priorityFilter, trackedOnly, tracked]);
+  }, [items, search, priorityFilter, trackedOnly, urgentOnly, tracked]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -211,6 +213,13 @@ export default function Scholarships() {
                 onClick={() => setTrackedOnly((v) => !v)}
               >
                 Tracked
+              </Button>
+              <Button
+                size="sm"
+                variant={urgentOnly ? "default" : "outline"}
+                onClick={() => setUrgentOnly((v) => !v)}
+              >
+                Urgent
               </Button>
             </div>
           </div>
