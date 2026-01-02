@@ -280,7 +280,18 @@ export default function Scholarships() {
 
                     <TableCell className="text-right font-semibold">{s.matchScore}</TableCell>
 
-                    <TableCell>{s.deadline ?? "—"}</TableCell>
+                    <TableCell>
+                      {s.deadline ? (
+                        <>
+                          <Badge variant={urgencyVariant(daysUntil(s.deadline) ?? 999)}>
+                            {urgencyLabel(daysUntil(s.deadline) ?? 999)}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground mt-1">{s.deadline}</div>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
 
                     <TableCell>
                       {formatMoneyRange(s.awardRange?.min, s.awardRange?.max)}
