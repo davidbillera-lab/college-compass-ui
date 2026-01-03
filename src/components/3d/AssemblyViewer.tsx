@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Download } from "lucide-react";
+import { generateBuildExport } from "./buildExport";
 
 // Skin definitions
 type SkinType = "default" | "neon_fantasy" | "worn_steel" | "camo_custom" | "gold_plated" | "holographic";
@@ -515,6 +517,8 @@ export const AssemblyViewer: React.FC = () => {
   const [globalSkin, setGlobalSkin] = useState<SkinType>("default");
   const [partSkins, setPartSkins] = useState<Record<string, SkinType>>({});
   const [showCoG, setShowCoG] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   const parts = useMemo(() => createParts(), []);
   const stepStatus = getStepStatus(disassemblyState);
@@ -567,6 +571,33 @@ export const AssemblyViewer: React.FC = () => {
     toast.success(`Applied ${SKINS[skin].label} skin to all parts`);
   }, []);
 
+  const handleExportPDF = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const cogDesc = `X: ${physicsData.centerOfGravity.x.toFixed(2)}, Y: ${physicsData.centerOfGravity.y.toFixed(2)}, Z: ${physicsData.centerOfGravity.z.toFixed(2)}`;
+      
+      const buildData = {
+        name: "AR15_Build",
+        totalMass: physicsData.totalMass,
+        cogDescription: cogDesc,
+        parts: parts.map((p) => ({
+          category: p.parentId ? "Component" : "Receiver",
+          name: p.name,
+          mass: p.mass,
+          nfaStatus: "Non-NFA (Standard)",
+        })),
+      };
+
+      await generateBuildExport(buildData, canvasContainerRef.current);
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Failed to export PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [parts, physicsData]);
+
   const isComplete = stepStatus.step === stepStatus.total;
   const selectedPartData = parts.find((p) => p.id === selectedPart);
 
@@ -609,7 +640,10 @@ export const AssemblyViewer: React.FC = () => {
         </div>
 
         {/* 3D Viewer */}
-        <div className="h-[400px] w-full rounded-lg overflow-hidden border bg-gradient-to-b from-gray-900 to-gray-800">
+        <div 
+          ref={canvasContainerRef}
+          className="h-[400px] w-full rounded-lg overflow-hidden border bg-gradient-to-b from-gray-900 to-gray-800"
+        >
           <Canvas camera={{ position: [4, 3, 4], fov: 50 }}>
             <Scene
               explodeFactor={explodeFactor}
@@ -671,6 +705,15 @@ export const AssemblyViewer: React.FC = () => {
                 onClick={() => setShowCoG(!showCoG)}
               >
                 {showCoG ? "Hide CoG" : "Show CoG"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                disabled={isExporting}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                {isExporting ? "Exporting..." : "Export PDF"}
               </Button>
             </div>
           </div>
