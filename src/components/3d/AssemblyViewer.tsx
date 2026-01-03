@@ -6,87 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-interface PartProps {
-  name: string;
-  position: [number, number, number];
-  color: string;
-  geometry: "box" | "cylinder" | "sphere";
-  size?: [number, number, number];
-  explodeFactor: number;
-  originalPosition: THREE.Vector3;
-  isAttached: boolean;
-  onClick?: () => void;
-  isSelected?: boolean;
+// State Machine for Disassembly
+interface DisassemblyState {
+  isMagazineRemoved: boolean;
+  isTakedownPinPushed: boolean;
+  isUpperPivoted: boolean;
+  isBCGRemoved: boolean;
+  isChargingHandleRemoved: boolean;
 }
 
-const Part: React.FC<PartProps> = ({
-  name,
-  position,
-  color,
-  geometry,
-  size = [1, 1, 1],
-  explodeFactor,
-  originalPosition,
-  isAttached,
-  onClick,
-  isSelected,
-}) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(() => {
-    if (!meshRef.current) return;
-
-    // Calculate exploded position
-    const direction = originalPosition.clone().normalize();
-    const explodedPos = originalPosition
-      .clone()
-      .add(direction.multiplyScalar(explodeFactor));
-
-    // Lerp to target position
-    meshRef.current.position.lerp(explodedPos, 0.1);
-  });
-
-  const renderGeometry = () => {
-    switch (geometry) {
-      case "cylinder":
-        return <cylinderGeometry args={[size[0], size[0], size[1], 32]} />;
-      case "sphere":
-        return <sphereGeometry args={[size[0], 32, 32]} />;
-      default:
-        return <boxGeometry args={size} />;
-    }
-  };
-
-  return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-    >
-      {renderGeometry()}
-      <meshStandardMaterial
-        color={color}
-        emissive={isSelected ? "#ffffff" : "#000000"}
-        emissiveIntensity={isSelected ? 0.3 : 0}
-        transparent={!isAttached}
-        opacity={isAttached ? 1 : 0.7}
-      />
-      <Text
-        position={[0, size[1] / 2 + 0.5, 0]}
-        fontSize={0.3}
-        color="white"
-        anchorX="center"
-        anchorY="bottom"
-      >
-        {name}
-      </Text>
-    </mesh>
-  );
+const initialDisassemblyState: DisassemblyState = {
+  isMagazineRemoved: false,
+  isTakedownPinPushed: false,
+  isUpperPivoted: false,
+  isBCGRemoved: false,
+  isChargingHandleRemoved: false,
 };
+
+interface PartAnimation {
+  targetPosition?: THREE.Vector3;
+  targetRotation?: THREE.Euler;
+  duration: number;
+}
 
 interface PartData {
   id: string;
@@ -96,15 +39,132 @@ interface PartData {
   geometry: "box" | "cylinder" | "sphere";
   size: [number, number, number];
   parentId: string | null;
+  canInteract?: (state: DisassemblyState) => boolean;
+  onInteract?: (state: DisassemblyState) => Partial<DisassemblyState> | null;
+  errorMessage?: (state: DisassemblyState) => string | null;
+  getAnimation?: (state: DisassemblyState) => PartAnimation | null;
 }
+
+interface PartProps {
+  part: PartData;
+  explodeFactor: number;
+  disassemblyState: DisassemblyState;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+const Part: React.FC<PartProps> = ({
+  part,
+  explodeFactor,
+  disassemblyState,
+  isSelected,
+  onClick,
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const originalPosition = useRef(new THREE.Vector3(...part.position));
+  const animationProgress = useRef(0);
+  const isAnimating = useRef(false);
+
+  const animation = part.getAnimation?.(disassemblyState);
+  const canInteract = part.canInteract?.(disassemblyState) ?? true;
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+
+    // Handle state-based animations
+    if (animation) {
+      if (animationProgress.current < 1) {
+        animationProgress.current = Math.min(1, animationProgress.current + delta * 2);
+        isAnimating.current = true;
+
+        if (animation.targetPosition) {
+          meshRef.current.position.lerp(animation.targetPosition, 0.1);
+        }
+        if (animation.targetRotation) {
+          meshRef.current.rotation.x = THREE.MathUtils.lerp(
+            meshRef.current.rotation.x,
+            animation.targetRotation.x,
+            0.1
+          );
+          meshRef.current.rotation.y = THREE.MathUtils.lerp(
+            meshRef.current.rotation.y,
+            animation.targetRotation.y,
+            0.1
+          );
+          meshRef.current.rotation.z = THREE.MathUtils.lerp(
+            meshRef.current.rotation.z,
+            animation.targetRotation.z,
+            0.1
+          );
+        }
+      } else {
+        isAnimating.current = false;
+      }
+    } else {
+      // Reset animation progress when no animation
+      if (animationProgress.current > 0 && !animation) {
+        animationProgress.current = 0;
+      }
+
+      // Apply explode factor
+      const direction = originalPosition.current.clone().normalize();
+      const explodedPos = originalPosition.current
+        .clone()
+        .add(direction.multiplyScalar(explodeFactor));
+      meshRef.current.position.lerp(explodedPos, 0.1);
+    }
+  });
+
+  const renderGeometry = () => {
+    switch (part.geometry) {
+      case "cylinder":
+        return <cylinderGeometry args={[part.size[0], part.size[0], part.size[1], 32]} />;
+      case "sphere":
+        return <sphereGeometry args={[part.size[0], 32, 32]} />;
+      default:
+        return <boxGeometry args={part.size} />;
+    }
+  };
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={part.position}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {renderGeometry()}
+      <meshStandardMaterial
+        color={part.color}
+        emissive={isSelected ? "#ffffff" : canInteract ? "#00ff00" : "#000000"}
+        emissiveIntensity={isSelected ? 0.4 : canInteract ? 0.15 : 0}
+        transparent={!canInteract}
+        opacity={canInteract ? 1 : 0.6}
+      />
+      <Text
+        position={[0, part.size[1] / 2 + 0.4, 0]}
+        fontSize={0.25}
+        color="white"
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={0.02}
+        outlineColor="#000000"
+      >
+        {part.name}
+      </Text>
+    </mesh>
+  );
+};
 
 const Scene: React.FC<{
   explodeFactor: number;
   parts: PartData[];
-  attachments: Record<string, string | null>;
+  disassemblyState: DisassemblyState;
   selectedPart: string | null;
-  onSelectPart: (id: string | null) => void;
-}> = ({ explodeFactor, parts, attachments, selectedPart, onSelectPart }) => {
+  onSelectPart: (id: string) => void;
+}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart }) => {
   return (
     <>
       <ambientLight intensity={0.5} />
@@ -114,16 +174,11 @@ const Scene: React.FC<{
       {parts.map((part) => (
         <Part
           key={part.id}
-          name={part.name}
-          position={part.position}
-          color={part.color}
-          geometry={part.geometry}
-          size={part.size}
+          part={part}
           explodeFactor={explodeFactor}
-          originalPosition={new THREE.Vector3(...part.position)}
-          isAttached={attachments[part.id] !== null}
-          onClick={() => onSelectPart(part.id)}
+          disassemblyState={disassemblyState}
           isSelected={selectedPart === part.id}
+          onClick={() => onSelectPart(part.id)}
         />
       ))}
 
@@ -133,105 +188,226 @@ const Scene: React.FC<{
   );
 };
 
-const initialParts: PartData[] = [
+// Define parts with state machine logic
+const createParts = (): PartData[] => [
   {
-    id: "base",
-    name: "Base",
-    position: [0, 0.5, 0],
-    color: "#4a5568",
+    id: "lower_receiver",
+    name: "Lower Receiver",
+    position: [0, 0.4, 0],
+    color: "#3d3d3d",
     geometry: "box",
-    size: [3, 1, 2],
+    size: [2.5, 0.8, 0.6],
     parentId: null,
+    canInteract: () => false, // Base part, always stays
   },
   {
-    id: "motor",
-    name: "Motor",
-    position: [0, 1.5, 0],
-    color: "#2b6cb0",
+    id: "magazine",
+    name: "Magazine",
+    position: [0.3, -0.3, 0],
+    color: "#4a4a4a",
+    geometry: "box",
+    size: [0.4, 1.2, 0.5],
+    parentId: "lower_receiver",
+    canInteract: (state) => !state.isMagazineRemoved,
+    onInteract: () => ({ isMagazineRemoved: true }),
+    getAnimation: (state) =>
+      state.isMagazineRemoved
+        ? {
+            targetPosition: new THREE.Vector3(0.3, -2.5, 0),
+            duration: 0.5,
+          }
+        : null,
+  },
+  {
+    id: "rear_takedown_pin",
+    name: "Takedown Pin",
+    position: [-0.8, 0.5, 0.35],
+    color: "#666666",
     geometry: "cylinder",
-    size: [0.6, 1.5, 0.6],
-    parentId: "base",
+    size: [0.08, 0.15, 0.08],
+    parentId: "lower_receiver",
+    canInteract: (state) => state.isMagazineRemoved && !state.isTakedownPinPushed,
+    onInteract: (state) => (state.isMagazineRemoved ? { isTakedownPinPushed: true } : null),
+    errorMessage: (state) =>
+      !state.isMagazineRemoved ? "Remove Magazine first before pushing takedown pin." : null,
+    getAnimation: (state) =>
+      state.isTakedownPinPushed
+        ? {
+            targetPosition: new THREE.Vector3(-0.8, 0.5, 0.55), // Push 5mm along Z
+            duration: 0.3,
+          }
+        : null,
   },
   {
-    id: "housing",
-    name: "Housing",
-    position: [0, 2.75, 0],
-    color: "#805ad5",
+    id: "upper_receiver",
+    name: "Upper Receiver",
+    position: [0, 1.1, 0],
+    color: "#2d2d2d",
     geometry: "box",
-    size: [1.5, 0.5, 1.5],
-    parentId: "motor",
+    size: [2.8, 0.6, 0.55],
+    parentId: "lower_receiver",
+    canInteract: (state) => state.isTakedownPinPushed && !state.isUpperPivoted,
+    onInteract: (state) => (state.isTakedownPinPushed ? { isUpperPivoted: true } : null),
+    errorMessage: (state) =>
+      !state.isTakedownPinPushed ? "Push Takedown Pin first to pivot upper receiver." : null,
+    getAnimation: (state) =>
+      state.isUpperPivoted
+        ? {
+            targetPosition: new THREE.Vector3(0.8, 1.5, 0),
+            targetRotation: new THREE.Euler(0, 0, Math.PI / 4), // Rotate 45 degrees
+            duration: 0.5,
+          }
+        : null,
   },
   {
-    id: "connector",
-    name: "Connector",
-    position: [1.5, 0.75, 0],
-    color: "#38a169",
-    geometry: "sphere",
-    size: [0.4, 0.4, 0.4],
-    parentId: "base",
+    id: "bcg",
+    name: "BCG",
+    position: [0, 1.1, 0],
+    color: "#1a1a1a",
+    geometry: "cylinder",
+    size: [0.18, 1.8, 0.18],
+    parentId: "upper_receiver",
+    canInteract: (state) => state.isUpperPivoted && !state.isBCGRemoved,
+    onInteract: (state) => (state.isUpperPivoted ? { isBCGRemoved: true } : null),
+    errorMessage: (state) =>
+      !state.isUpperPivoted ? "Pivot Upper Receiver first to access the BCG." : null,
+    getAnimation: (state) =>
+      state.isBCGRemoved
+        ? {
+            targetPosition: new THREE.Vector3(2.5, 1.1, 0),
+            duration: 0.5,
+          }
+        : null,
   },
   {
-    id: "sensor",
-    name: "Sensor",
-    position: [-1.5, 0.75, 0],
-    color: "#d69e2e",
+    id: "charging_handle",
+    name: "Charging Handle",
+    position: [-1.2, 1.3, 0],
+    color: "#555555",
     geometry: "box",
-    size: [0.5, 0.5, 0.5],
-    parentId: "base",
+    size: [0.4, 0.15, 0.3],
+    parentId: "upper_receiver",
+    canInteract: (state) => state.isBCGRemoved && !state.isChargingHandleRemoved,
+    onInteract: (state) => (state.isBCGRemoved ? { isChargingHandleRemoved: true } : null),
+    errorMessage: (state) =>
+      !state.isBCGRemoved ? "Remove BCG first before removing Charging Handle." : null,
+    getAnimation: (state) =>
+      state.isChargingHandleRemoved
+        ? {
+            targetPosition: new THREE.Vector3(-2.5, 1.3, 0),
+            duration: 0.5,
+          }
+        : null,
   },
 ];
+
+const getStepStatus = (state: DisassemblyState): { step: number; total: number; label: string } => {
+  const steps = [
+    { done: state.isMagazineRemoved, label: "Remove Magazine" },
+    { done: state.isTakedownPinPushed, label: "Push Takedown Pin" },
+    { done: state.isUpperPivoted, label: "Pivot Upper Receiver" },
+    { done: state.isBCGRemoved, label: "Remove BCG" },
+    { done: state.isChargingHandleRemoved, label: "Remove Charging Handle" },
+  ];
+
+  const completedSteps = steps.filter((s) => s.done).length;
+  const nextStep = steps.find((s) => !s.done);
+
+  return {
+    step: completedSteps,
+    total: steps.length,
+    label: nextStep?.label || "Field Strip Complete!",
+  };
+};
 
 export const AssemblyViewer: React.FC = () => {
   const [explodeFactor, setExplodeFactor] = useState(0);
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<Record<string, string | null>>(
-    () => {
-      const initial: Record<string, string | null> = {};
-      initialParts.forEach((part) => {
-        initial[part.id] = part.parentId;
-      });
-      return initial;
-    }
+  const [disassemblyState, setDisassemblyState] = useState<DisassemblyState>(
+    initialDisassemblyState
   );
+
+  const parts = createParts();
+  const stepStatus = getStepStatus(disassemblyState);
+
+  const handlePartClick = useCallback(
+    (partId: string) => {
+      setSelectedPart(partId);
+      const part = parts.find((p) => p.id === partId);
+      if (!part) return;
+
+      // Check for error condition
+      const errorMsg = part.errorMessage?.(disassemblyState);
+      if (errorMsg) {
+        toast.error(errorMsg);
+        return;
+      }
+
+      // Check if can interact
+      if (!part.canInteract?.(disassemblyState)) {
+        return;
+      }
+
+      // Execute interaction
+      const stateUpdate = part.onInteract?.(disassemblyState);
+      if (stateUpdate) {
+        setDisassemblyState((prev) => ({ ...prev, ...stateUpdate }));
+        toast.success(`${part.name} action completed`);
+      }
+    },
+    [parts, disassemblyState]
+  );
+
+  const handleReset = useCallback(() => {
+    setDisassemblyState(initialDisassemblyState);
+    setExplodeFactor(0);
+    toast.info("Assembly reset to initial state");
+  }, []);
 
   const handleExplode = useCallback(() => {
     setExplodeFactor((prev) => (prev > 0 ? 0 : 2));
   }, []);
 
-  const handleAttachPart = useCallback((childId: string, parentId: string) => {
-    setAttachments((prev) => ({ ...prev, [childId]: parentId }));
-    console.log(`${childId} is now physically linked to ${parentId}`);
-  }, []);
-
-  const handleDetachPart = useCallback((partId: string) => {
-    setAttachments((prev) => ({ ...prev, [partId]: null }));
-    console.log(`${partId} has been detached`);
-  }, []);
-
-  const selectedPartData = initialParts.find((p) => p.id === selectedPart);
-  const possibleParents = initialParts.filter((p) => p.id !== selectedPart);
+  const isComplete = stepStatus.step === stepStatus.total;
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto animate-fade-in">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>3D Assembly Viewer</span>
-          <Badge variant="outline">Interactive</Badge>
+          <span>Field Strip Trainer</span>
+          <div className="flex items-center gap-2">
+            <Badge variant={isComplete ? "default" : "secondary"}>
+              Step {stepStatus.step}/{stepStatus.total}
+            </Badge>
+            {isComplete && (
+              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500">
+                Complete!
+              </Badge>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Current instruction */}
+        <div className="rounded-lg bg-muted/50 p-3 border">
+          <div className="text-sm font-medium text-muted-foreground mb-1">Next Step:</div>
+          <div className="text-lg font-semibold">{stepStatus.label}</div>
+        </div>
+
+        {/* 3D Viewer */}
         <div className="h-[400px] w-full rounded-lg overflow-hidden border bg-gradient-to-b from-gray-900 to-gray-800">
-          <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
+          <Canvas camera={{ position: [4, 3, 4], fov: 50 }}>
             <Scene
               explodeFactor={explodeFactor}
-              parts={initialParts}
-              attachments={attachments}
+              parts={parts}
+              disassemblyState={disassemblyState}
               selectedPart={selectedPart}
-              onSelectPart={setSelectedPart}
+              onSelectPart={handlePartClick}
             />
           </Canvas>
         </div>
 
+        {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Explode View</h4>
@@ -250,49 +426,37 @@ export const AssemblyViewer: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-medium">Selected Part</h4>
-            {selectedPartData ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge
-                  style={{ backgroundColor: selectedPartData.color }}
-                  className="text-white"
-                >
-                  {selectedPartData.name}
-                </Badge>
-                {attachments[selectedPartData.id] ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDetachPart(selectedPartData.id)}
-                  >
-                    Detach
-                  </Button>
-                ) : (
-                  possibleParents.map((parent) => (
-                    <Button
-                      key={parent.id}
-                      variant="secondary"
-                      size="sm"
-                      onClick={() =>
-                        handleAttachPart(selectedPartData.id, parent.id)
-                      }
-                    >
-                      Attach to {parent.name}
-                    </Button>
-                  ))
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Click a part to select it
-              </p>
-            )}
+            <h4 className="text-sm font-medium">Actions</h4>
+            <div className="flex gap-2">
+              <Button variant="destructive" size="sm" onClick={handleReset}>
+                Reset All
+              </Button>
+            </div>
           </div>
         </div>
 
+        {/* Progress indicators */}
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={disassemblyState.isMagazineRemoved ? "default" : "outline"}>
+            1. Magazine
+          </Badge>
+          <Badge variant={disassemblyState.isTakedownPinPushed ? "default" : "outline"}>
+            2. Takedown Pin
+          </Badge>
+          <Badge variant={disassemblyState.isUpperPivoted ? "default" : "outline"}>
+            3. Upper Receiver
+          </Badge>
+          <Badge variant={disassemblyState.isBCGRemoved ? "default" : "outline"}>
+            4. BCG
+          </Badge>
+          <Badge variant={disassemblyState.isChargingHandleRemoved ? "default" : "outline"}>
+            5. Charging Handle
+          </Badge>
+        </div>
+
         <div className="text-xs text-muted-foreground">
-          <strong>Controls:</strong> Click + drag to rotate · Scroll to zoom ·
-          Click parts to select
+          <strong>Controls:</strong> Click + drag to rotate · Scroll to zoom · Click highlighted
+          parts to interact · Green glow = can interact
         </div>
       </CardContent>
     </Card>
