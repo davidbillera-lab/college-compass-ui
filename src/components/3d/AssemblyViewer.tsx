@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -7,6 +7,83 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Skin definitions
+type SkinType = "default" | "neon_fantasy" | "worn_steel" | "camo_custom" | "gold_plated" | "holographic";
+
+interface SkinSettings {
+  color?: string;
+  emissive?: string;
+  emissiveIntensity?: number;
+  roughness?: number;
+  metalness?: number;
+  opacity?: number;
+  transparent?: boolean;
+}
+
+const SKINS: Record<SkinType, { label: string; settings: SkinSettings }> = {
+  default: {
+    label: "Default",
+    settings: { roughness: 0.5, metalness: 0.3 },
+  },
+  neon_fantasy: {
+    label: "Neon Fantasy",
+    settings: { 
+      color: "#00ffff", 
+      emissive: "#00ffff", 
+      emissiveIntensity: 2,
+      roughness: 0.2,
+      metalness: 0.8,
+    },
+  },
+  worn_steel: {
+    label: "Worn Steel",
+    settings: { 
+      color: "#8b8b8b",
+      roughness: 0.8, 
+      metalness: 1.0,
+      emissive: "#000000",
+      emissiveIntensity: 0,
+    },
+  },
+  camo_custom: {
+    label: "Tactical Camo",
+    settings: { 
+      color: "#4a5d23",
+      roughness: 0.9, 
+      metalness: 0.1,
+    },
+  },
+  gold_plated: {
+    label: "Gold Plated",
+    settings: {
+      color: "#ffd700",
+      emissive: "#ff8c00",
+      emissiveIntensity: 0.3,
+      roughness: 0.1,
+      metalness: 1.0,
+    },
+  },
+  holographic: {
+    label: "Holographic",
+    settings: {
+      color: "#ff00ff",
+      emissive: "#8800ff",
+      emissiveIntensity: 1.5,
+      roughness: 0.0,
+      metalness: 0.9,
+      opacity: 0.85,
+      transparent: true,
+    },
+  },
+};
 
 // State Machine for Disassembly
 interface DisassemblyState {
@@ -51,6 +128,8 @@ interface PartProps {
   disassemblyState: DisassemblyState;
   isSelected: boolean;
   onClick: () => void;
+  skin: SkinType;
+  globalSkin: SkinType;
 }
 
 const Part: React.FC<PartProps> = ({
@@ -59,23 +138,28 @@ const Part: React.FC<PartProps> = ({
   disassemblyState,
   isSelected,
   onClick,
+  skin,
+  globalSkin,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const originalPosition = useRef(new THREE.Vector3(...part.position));
   const animationProgress = useRef(0);
-  const isAnimating = useRef(false);
+  const hueOffset = useRef(Math.random() * Math.PI * 2);
 
   const animation = part.getAnimation?.(disassemblyState);
   const canInteract = part.canInteract?.(disassemblyState) ?? true;
 
-  useFrame((_, delta) => {
+  // Determine which skin to use (part-specific or global)
+  const activeSkin = skin !== "default" ? skin : globalSkin;
+  const skinSettings = SKINS[activeSkin].settings;
+
+  useFrame((state, delta) => {
     if (!meshRef.current) return;
 
     // Handle state-based animations
     if (animation) {
       if (animationProgress.current < 1) {
         animationProgress.current = Math.min(1, animationProgress.current + delta * 2);
-        isAnimating.current = true;
 
         if (animation.targetPosition) {
           meshRef.current.position.lerp(animation.targetPosition, 0.1);
@@ -97,21 +181,31 @@ const Part: React.FC<PartProps> = ({
             0.1
           );
         }
-      } else {
-        isAnimating.current = false;
       }
     } else {
-      // Reset animation progress when no animation
       if (animationProgress.current > 0 && !animation) {
         animationProgress.current = 0;
       }
 
-      // Apply explode factor
       const direction = originalPosition.current.clone().normalize();
       const explodedPos = originalPosition.current
         .clone()
         .add(direction.multiplyScalar(explodeFactor));
       meshRef.current.position.lerp(explodedPos, 0.1);
+    }
+
+    // Animated effects for special skins
+    if (activeSkin === "holographic" && meshRef.current.material) {
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      const hue = (state.clock.elapsedTime * 0.5 + hueOffset.current) % 1;
+      mat.color.setHSL(hue, 0.8, 0.5);
+      mat.emissive.setHSL(hue, 1, 0.3);
+    }
+
+    if (activeSkin === "neon_fantasy" && meshRef.current.material) {
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.5 + 1.5;
+      mat.emissiveIntensity = pulse;
     }
   });
 
@@ -126,6 +220,19 @@ const Part: React.FC<PartProps> = ({
     }
   };
 
+  // Compute material color
+  const baseColor = skinSettings.color || part.color;
+  const emissiveColor = isSelected 
+    ? "#ffffff" 
+    : canInteract 
+      ? "#00ff00" 
+      : (skinSettings.emissive || "#000000");
+  const emissiveIntensity = isSelected 
+    ? 0.4 
+    : canInteract 
+      ? 0.15 
+      : (skinSettings.emissiveIntensity || 0);
+
   return (
     <mesh
       ref={meshRef}
@@ -137,11 +244,13 @@ const Part: React.FC<PartProps> = ({
     >
       {renderGeometry()}
       <meshStandardMaterial
-        color={part.color}
-        emissive={isSelected ? "#ffffff" : canInteract ? "#00ff00" : "#000000"}
-        emissiveIntensity={isSelected ? 0.4 : canInteract ? 0.15 : 0}
-        transparent={!canInteract}
-        opacity={canInteract ? 1 : 0.6}
+        color={baseColor}
+        emissive={emissiveColor}
+        emissiveIntensity={emissiveIntensity}
+        roughness={skinSettings.roughness ?? 0.5}
+        metalness={skinSettings.metalness ?? 0.3}
+        transparent={skinSettings.transparent || !canInteract}
+        opacity={canInteract ? (skinSettings.opacity ?? 1) : 0.6}
       />
       <Text
         position={[0, part.size[1] / 2 + 0.4, 0]}
@@ -164,12 +273,15 @@ const Scene: React.FC<{
   disassemblyState: DisassemblyState;
   selectedPart: string | null;
   onSelectPart: (id: string) => void;
-}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart }) => {
+  partSkins: Record<string, SkinType>;
+  globalSkin: SkinType;
+}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart, partSkins, globalSkin }) => {
   return (
     <>
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.4} />
       <directionalLight position={[5, 5, 5]} intensity={1} />
       <directionalLight position={[-5, -5, -5]} intensity={0.3} />
+      <pointLight position={[0, 3, 0]} intensity={0.5} color="#ffffff" />
 
       {parts.map((part) => (
         <Part
@@ -179,6 +291,8 @@ const Scene: React.FC<{
           disassemblyState={disassemblyState}
           isSelected={selectedPart === part.id}
           onClick={() => onSelectPart(part.id)}
+          skin={partSkins[part.id] || "default"}
+          globalSkin={globalSkin}
         />
       ))}
 
@@ -198,7 +312,7 @@ const createParts = (): PartData[] => [
     geometry: "box",
     size: [2.5, 0.8, 0.6],
     parentId: null,
-    canInteract: () => false, // Base part, always stays
+    canInteract: () => false,
   },
   {
     id: "magazine",
@@ -212,10 +326,7 @@ const createParts = (): PartData[] => [
     onInteract: () => ({ isMagazineRemoved: true }),
     getAnimation: (state) =>
       state.isMagazineRemoved
-        ? {
-            targetPosition: new THREE.Vector3(0.3, -2.5, 0),
-            duration: 0.5,
-          }
+        ? { targetPosition: new THREE.Vector3(0.3, -2.5, 0), duration: 0.5 }
         : null,
   },
   {
@@ -232,10 +343,7 @@ const createParts = (): PartData[] => [
       !state.isMagazineRemoved ? "Remove Magazine first before pushing takedown pin." : null,
     getAnimation: (state) =>
       state.isTakedownPinPushed
-        ? {
-            targetPosition: new THREE.Vector3(-0.8, 0.5, 0.55), // Push 5mm along Z
-            duration: 0.3,
-          }
+        ? { targetPosition: new THREE.Vector3(-0.8, 0.5, 0.55), duration: 0.3 }
         : null,
   },
   {
@@ -254,7 +362,7 @@ const createParts = (): PartData[] => [
       state.isUpperPivoted
         ? {
             targetPosition: new THREE.Vector3(0.8, 1.5, 0),
-            targetRotation: new THREE.Euler(0, 0, Math.PI / 4), // Rotate 45 degrees
+            targetRotation: new THREE.Euler(0, 0, Math.PI / 4),
             duration: 0.5,
           }
         : null,
@@ -273,10 +381,7 @@ const createParts = (): PartData[] => [
       !state.isUpperPivoted ? "Pivot Upper Receiver first to access the BCG." : null,
     getAnimation: (state) =>
       state.isBCGRemoved
-        ? {
-            targetPosition: new THREE.Vector3(2.5, 1.1, 0),
-            duration: 0.5,
-          }
+        ? { targetPosition: new THREE.Vector3(2.5, 1.1, 0), duration: 0.5 }
         : null,
   },
   {
@@ -293,15 +398,12 @@ const createParts = (): PartData[] => [
       !state.isBCGRemoved ? "Remove BCG first before removing Charging Handle." : null,
     getAnimation: (state) =>
       state.isChargingHandleRemoved
-        ? {
-            targetPosition: new THREE.Vector3(-2.5, 1.3, 0),
-            duration: 0.5,
-          }
+        ? { targetPosition: new THREE.Vector3(-2.5, 1.3, 0), duration: 0.5 }
         : null,
   },
 ];
 
-const getStepStatus = (state: DisassemblyState): { step: number; total: number; label: string } => {
+const getStepStatus = (state: DisassemblyState) => {
   const steps = [
     { done: state.isMagazineRemoved, label: "Remove Magazine" },
     { done: state.isTakedownPinPushed, label: "Push Takedown Pin" },
@@ -323,11 +425,11 @@ const getStepStatus = (state: DisassemblyState): { step: number; total: number; 
 export const AssemblyViewer: React.FC = () => {
   const [explodeFactor, setExplodeFactor] = useState(0);
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
-  const [disassemblyState, setDisassemblyState] = useState<DisassemblyState>(
-    initialDisassemblyState
-  );
+  const [disassemblyState, setDisassemblyState] = useState<DisassemblyState>(initialDisassemblyState);
+  const [globalSkin, setGlobalSkin] = useState<SkinType>("default");
+  const [partSkins, setPartSkins] = useState<Record<string, SkinType>>({});
 
-  const parts = createParts();
+  const parts = useMemo(() => createParts(), []);
   const stepStatus = getStepStatus(disassemblyState);
 
   const handlePartClick = useCallback(
@@ -336,19 +438,16 @@ export const AssemblyViewer: React.FC = () => {
       const part = parts.find((p) => p.id === partId);
       if (!part) return;
 
-      // Check for error condition
       const errorMsg = part.errorMessage?.(disassemblyState);
       if (errorMsg) {
         toast.error(errorMsg);
         return;
       }
 
-      // Check if can interact
       if (!part.canInteract?.(disassemblyState)) {
         return;
       }
 
-      // Execute interaction
       const stateUpdate = part.onInteract?.(disassemblyState);
       if (stateUpdate) {
         setDisassemblyState((prev) => ({ ...prev, ...stateUpdate }));
@@ -368,7 +467,19 @@ export const AssemblyViewer: React.FC = () => {
     setExplodeFactor((prev) => (prev > 0 ? 0 : 2));
   }, []);
 
+  const applySkinToPart = useCallback((partId: string, skin: SkinType) => {
+    setPartSkins((prev) => ({ ...prev, [partId]: skin }));
+    toast.success(`Applied ${SKINS[skin].label} skin to part`);
+  }, []);
+
+  const applyGlobalSkin = useCallback((skin: SkinType) => {
+    setGlobalSkin(skin);
+    setPartSkins({}); // Clear individual skins
+    toast.success(`Applied ${SKINS[skin].label} skin to all parts`);
+  }, []);
+
   const isComplete = stepStatus.step === stepStatus.total;
+  const selectedPartData = parts.find((p) => p.id === selectedPart);
 
   return (
     <Card className="w-full max-w-4xl mx-auto animate-fade-in">
@@ -403,12 +514,14 @@ export const AssemblyViewer: React.FC = () => {
               disassemblyState={disassemblyState}
               selectedPart={selectedPart}
               onSelectPart={handlePartClick}
+              partSkins={partSkins}
+              globalSkin={globalSkin}
             />
           </Canvas>
         </div>
 
         {/* Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Explode View</h4>
             <div className="flex items-center gap-4">
@@ -426,14 +539,58 @@ export const AssemblyViewer: React.FC = () => {
           </div>
 
           <div className="space-y-3">
+            <h4 className="text-sm font-medium">Global Skin</h4>
+            <Select value={globalSkin} onValueChange={(v) => applyGlobalSkin(v as SkinType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(SKINS).map(([key, { label }]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3">
             <h4 className="text-sm font-medium">Actions</h4>
-            <div className="flex gap-2">
-              <Button variant="destructive" size="sm" onClick={handleReset}>
-                Reset All
-              </Button>
-            </div>
+            <Button variant="destructive" size="sm" onClick={handleReset}>
+              Reset All
+            </Button>
           </div>
         </div>
+
+        {/* Selected part skin */}
+        {selectedPartData && (
+          <div className="rounded-lg border p-3 bg-muted/30 animate-fade-in">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-sm text-muted-foreground">Selected Part</div>
+                <div className="font-medium">{selectedPartData.name}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Apply Skin:</span>
+                <Select
+                  value={partSkins[selectedPart!] || "default"}
+                  onValueChange={(v) => applySkinToPart(selectedPart!, v as SkinType)}
+                >
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SKINS).map(([key, { label }]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress indicators */}
         <div className="flex flex-wrap gap-2">
@@ -455,8 +612,7 @@ export const AssemblyViewer: React.FC = () => {
         </div>
 
         <div className="text-xs text-muted-foreground">
-          <strong>Controls:</strong> Click + drag to rotate · Scroll to zoom · Click highlighted
-          parts to interact · Green glow = can interact
+          <strong>Controls:</strong> Click + drag to rotate · Scroll to zoom · Click parts to interact · Green glow = can interact
         </div>
       </CardContent>
     </Card>
