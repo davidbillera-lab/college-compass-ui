@@ -116,10 +116,16 @@ interface PartData {
   geometry: "box" | "cylinder" | "sphere";
   size: [number, number, number];
   parentId: string | null;
+  mass: number; // Mass in kg
   canInteract?: (state: DisassemblyState) => boolean;
   onInteract?: (state: DisassemblyState) => Partial<DisassemblyState> | null;
   errorMessage?: (state: DisassemblyState) => string | null;
   getAnimation?: (state: DisassemblyState) => PartAnimation | null;
+}
+
+interface PhysicsData {
+  totalMass: number;
+  centerOfGravity: THREE.Vector3;
 }
 
 interface PartProps {
@@ -267,6 +273,46 @@ const Part: React.FC<PartProps> = ({
   );
 };
 
+// Center of Gravity Marker component
+const CoGMarker: React.FC<{ position: THREE.Vector3 }> = ({ position }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.position.lerp(position, 0.1);
+      // Pulsing animation
+      const scale = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.15;
+      meshRef.current.scale.setScalar(scale);
+    }
+  });
+
+  return (
+    <group>
+      <mesh ref={meshRef} position={position.toArray()}>
+        <sphereGeometry args={[0.12, 32, 32]} />
+        <meshStandardMaterial
+          color="#ff4444"
+          emissive="#ff0000"
+          emissiveIntensity={1.5}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <Text
+        position={[position.x, position.y + 0.35, position.z]}
+        fontSize={0.18}
+        color="#ff4444"
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={0.015}
+        outlineColor="#000000"
+      >
+        CoG
+      </Text>
+    </group>
+  );
+};
+
 const Scene: React.FC<{
   explodeFactor: number;
   parts: PartData[];
@@ -275,7 +321,9 @@ const Scene: React.FC<{
   onSelectPart: (id: string) => void;
   partSkins: Record<string, SkinType>;
   globalSkin: SkinType;
-}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart, partSkins, globalSkin }) => {
+  showCoG: boolean;
+  cogPosition: THREE.Vector3;
+}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart, partSkins, globalSkin, showCoG, cogPosition }) => {
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -296,13 +344,15 @@ const Scene: React.FC<{
         />
       ))}
 
+      {showCoG && <CoGMarker position={cogPosition} />}
+
       <OrbitControls enableDamping dampingFactor={0.05} />
       <gridHelper args={[10, 10, "#444", "#222"]} />
     </>
   );
 };
 
-// Define parts with state machine logic
+// Define parts with state machine logic and mass data
 const createParts = (): PartData[] => [
   {
     id: "lower_receiver",
@@ -312,6 +362,7 @@ const createParts = (): PartData[] => [
     geometry: "box",
     size: [2.5, 0.8, 0.6],
     parentId: null,
+    mass: 0.36, // kg
     canInteract: () => false,
   },
   {
@@ -322,6 +373,7 @@ const createParts = (): PartData[] => [
     geometry: "box",
     size: [0.4, 1.2, 0.5],
     parentId: "lower_receiver",
+    mass: 0.45, // kg (loaded)
     canInteract: (state) => !state.isMagazineRemoved,
     onInteract: () => ({ isMagazineRemoved: true }),
     getAnimation: (state) =>
@@ -337,6 +389,7 @@ const createParts = (): PartData[] => [
     geometry: "cylinder",
     size: [0.08, 0.15, 0.08],
     parentId: "lower_receiver",
+    mass: 0.008, // kg
     canInteract: (state) => state.isMagazineRemoved && !state.isTakedownPinPushed,
     onInteract: (state) => (state.isMagazineRemoved ? { isTakedownPinPushed: true } : null),
     errorMessage: (state) =>
@@ -354,6 +407,7 @@ const createParts = (): PartData[] => [
     geometry: "box",
     size: [2.8, 0.6, 0.55],
     parentId: "lower_receiver",
+    mass: 0.45, // kg
     canInteract: (state) => state.isTakedownPinPushed && !state.isUpperPivoted,
     onInteract: (state) => (state.isTakedownPinPushed ? { isUpperPivoted: true } : null),
     errorMessage: (state) =>
@@ -375,6 +429,7 @@ const createParts = (): PartData[] => [
     geometry: "cylinder",
     size: [0.18, 1.8, 0.18],
     parentId: "upper_receiver",
+    mass: 0.31, // kg
     canInteract: (state) => state.isUpperPivoted && !state.isBCGRemoved,
     onInteract: (state) => (state.isUpperPivoted ? { isBCGRemoved: true } : null),
     errorMessage: (state) =>
@@ -392,6 +447,7 @@ const createParts = (): PartData[] => [
     geometry: "box",
     size: [0.4, 0.15, 0.3],
     parentId: "upper_receiver",
+    mass: 0.05, // kg
     canInteract: (state) => state.isBCGRemoved && !state.isChargingHandleRemoved,
     onInteract: (state) => (state.isBCGRemoved ? { isChargingHandleRemoved: true } : null),
     errorMessage: (state) =>
@@ -402,6 +458,36 @@ const createParts = (): PartData[] => [
         : null,
   },
 ];
+
+// Calculate physics data for assembled parts
+const calculatePhysics = (parts: PartData[], disassemblyState: DisassemblyState): PhysicsData => {
+  let totalMass = 0;
+  const cogVector = new THREE.Vector3(0, 0, 0);
+
+  // Determine which parts are still assembled
+  const assembledParts = parts.filter((part) => {
+    if (part.id === "magazine" && disassemblyState.isMagazineRemoved) return false;
+    if (part.id === "bcg" && disassemblyState.isBCGRemoved) return false;
+    if (part.id === "charging_handle" && disassemblyState.isChargingHandleRemoved) return false;
+    return true;
+  });
+
+  assembledParts.forEach((part) => {
+    const mass = part.mass;
+    totalMass += mass;
+
+    // Get part position and add weighted contribution to CoG
+    const partPos = new THREE.Vector3(...part.position);
+    cogVector.add(partPos.multiplyScalar(mass));
+  });
+
+  // Calculate final center of gravity
+  if (totalMass > 0) {
+    cogVector.divideScalar(totalMass);
+  }
+
+  return { totalMass, centerOfGravity: cogVector };
+};
 
 const getStepStatus = (state: DisassemblyState) => {
   const steps = [
@@ -428,9 +514,11 @@ export const AssemblyViewer: React.FC = () => {
   const [disassemblyState, setDisassemblyState] = useState<DisassemblyState>(initialDisassemblyState);
   const [globalSkin, setGlobalSkin] = useState<SkinType>("default");
   const [partSkins, setPartSkins] = useState<Record<string, SkinType>>({});
+  const [showCoG, setShowCoG] = useState(true);
 
   const parts = useMemo(() => createParts(), []);
   const stepStatus = getStepStatus(disassemblyState);
+  const physicsData = useMemo(() => calculatePhysics(parts, disassemblyState), [parts, disassemblyState]);
 
   const handlePartClick = useCallback(
     (partId: string) => {
@@ -460,6 +548,7 @@ export const AssemblyViewer: React.FC = () => {
   const handleReset = useCallback(() => {
     setDisassemblyState(initialDisassemblyState);
     setExplodeFactor(0);
+    setShowCoG(true);
     toast.info("Assembly reset to initial state");
   }, []);
 
@@ -499,10 +588,24 @@ export const AssemblyViewer: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Current instruction */}
-        <div className="rounded-lg bg-muted/50 p-3 border">
-          <div className="text-sm font-medium text-muted-foreground mb-1">Next Step:</div>
-          <div className="text-lg font-semibold">{stepStatus.label}</div>
+        {/* Physics Stats & Current instruction */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg bg-muted/50 p-3 border">
+            <div className="text-sm font-medium text-muted-foreground mb-1">Next Step:</div>
+            <div className="text-lg font-semibold">{stepStatus.label}</div>
+          </div>
+          <div className="rounded-lg bg-muted/50 p-3 border">
+            <div className="text-sm font-medium text-muted-foreground mb-1">Build Physics:</div>
+            <div className="flex items-center gap-4">
+              <div>
+                <span className="text-lg font-semibold">{physicsData.totalMass.toFixed(3)}</span>
+                <span className="text-sm text-muted-foreground ml-1">kg</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                CoG: ({physicsData.centerOfGravity.x.toFixed(2)}, {physicsData.centerOfGravity.y.toFixed(2)}, {physicsData.centerOfGravity.z.toFixed(2)})
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 3D Viewer */}
@@ -516,6 +619,8 @@ export const AssemblyViewer: React.FC = () => {
               onSelectPart={handlePartClick}
               partSkins={partSkins}
               globalSkin={globalSkin}
+              showCoG={showCoG}
+              cogPosition={physicsData.centerOfGravity}
             />
           </Canvas>
         </div>
@@ -556,9 +661,18 @@ export const AssemblyViewer: React.FC = () => {
 
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Actions</h4>
-            <Button variant="destructive" size="sm" onClick={handleReset}>
-              Reset All
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="destructive" size="sm" onClick={handleReset}>
+                Reset All
+              </Button>
+              <Button
+                variant={showCoG ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCoG(!showCoG)}
+              >
+                {showCoG ? "Hide CoG" : "Show CoG"}
+              </Button>
+            </div>
           </div>
         </div>
 
