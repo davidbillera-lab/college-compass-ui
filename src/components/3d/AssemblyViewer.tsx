@@ -119,11 +119,51 @@ interface PartData {
   size: [number, number, number];
   parentId: string | null;
   mass: number; // Mass in kg
+  category?: "Barrel" | "Stock" | "Receiver" | "Component";
+  length?: number; // Length in inches (for barrels)
   canInteract?: (state: DisassemblyState) => boolean;
   onInteract?: (state: DisassemblyState) => Partial<DisassemblyState> | null;
   errorMessage?: (state: DisassemblyState) => string | null;
   getAnimation?: (state: DisassemblyState) => PartAnimation | null;
 }
+
+// NFA Compliance Status
+type NFAStatus = "Standard Configuration" | "NFA REGULATED: Short Barreled Rifle (SBR)" | "NFA REGULATED: Any Other Weapon (AOW)";
+
+interface ComplianceResult {
+  status: NFAStatus;
+  isNFA: boolean;
+  details: string;
+}
+
+const checkCompliance = (parts: PartData[]): ComplianceResult => {
+  const barrel = parts.find(p => p.category === "Barrel");
+  const stock = parts.find(p => p.category === "Stock");
+  
+  // 2026 NFA Rule: Barrel < 16" with a Stock = SBR (requires $0 Tax Stamp registration)
+  if (barrel?.length && barrel.length < 16 && stock) {
+    return {
+      status: "NFA REGULATED: Short Barreled Rifle (SBR)",
+      isNFA: true,
+      details: `Barrel length ${barrel.length}" < 16" with stock attached. Requires ATF Form 4 registration ($0 tax under OBBBA 2026).`,
+    };
+  }
+  
+  // Additional check: Barrel < 16" without stock could be pistol or AOW
+  if (barrel?.length && barrel.length < 16 && !stock) {
+    return {
+      status: "Standard Configuration",
+      isNFA: false,
+      details: `Pistol configuration - ${barrel.length}" barrel without stock. No NFA registration required.`,
+    };
+  }
+  
+  return {
+    status: "Standard Configuration",
+    isNFA: false,
+    details: "Standard rifle configuration. No NFA restrictions apply.",
+  };
+};
 
 interface PhysicsData {
   totalMass: number;
@@ -365,6 +405,7 @@ const createParts = (): PartData[] => [
     size: [2.5, 0.8, 0.6],
     parentId: null,
     mass: 0.36, // kg
+    category: "Receiver",
     canInteract: () => false,
   },
   {
@@ -376,6 +417,7 @@ const createParts = (): PartData[] => [
     size: [0.4, 1.2, 0.5],
     parentId: "lower_receiver",
     mass: 0.45, // kg (loaded)
+    category: "Component",
     canInteract: (state) => !state.isMagazineRemoved,
     onInteract: () => ({ isMagazineRemoved: true }),
     getAnimation: (state) =>
@@ -392,6 +434,7 @@ const createParts = (): PartData[] => [
     size: [0.08, 0.15, 0.08],
     parentId: "lower_receiver",
     mass: 0.008, // kg
+    category: "Component",
     canInteract: (state) => state.isMagazineRemoved && !state.isTakedownPinPushed,
     onInteract: (state) => (state.isMagazineRemoved ? { isTakedownPinPushed: true } : null),
     errorMessage: (state) =>
@@ -410,6 +453,7 @@ const createParts = (): PartData[] => [
     size: [2.8, 0.6, 0.55],
     parentId: "lower_receiver",
     mass: 0.45, // kg
+    category: "Receiver",
     canInteract: (state) => state.isTakedownPinPushed && !state.isUpperPivoted,
     onInteract: (state) => (state.isTakedownPinPushed ? { isUpperPivoted: true } : null),
     errorMessage: (state) =>
@@ -424,6 +468,31 @@ const createParts = (): PartData[] => [
         : null,
   },
   {
+    id: "barrel",
+    name: "Barrel (16\")",
+    position: [1.8, 1.1, 0],
+    color: "#1f1f1f",
+    geometry: "cylinder",
+    size: [0.12, 2.2, 0.12],
+    parentId: "upper_receiver",
+    mass: 0.68, // kg
+    category: "Barrel",
+    length: 16, // inches - standard rifle length
+    canInteract: () => false,
+  },
+  {
+    id: "stock",
+    name: "Buttstock",
+    position: [-1.6, 0.5, 0],
+    color: "#2a2a2a",
+    geometry: "box",
+    size: [1.0, 0.5, 0.4],
+    parentId: "lower_receiver",
+    mass: 0.25, // kg
+    category: "Stock",
+    canInteract: () => false,
+  },
+  {
     id: "bcg",
     name: "BCG",
     position: [0, 1.1, 0],
@@ -432,6 +501,7 @@ const createParts = (): PartData[] => [
     size: [0.18, 1.8, 0.18],
     parentId: "upper_receiver",
     mass: 0.31, // kg
+    category: "Component",
     canInteract: (state) => state.isUpperPivoted && !state.isBCGRemoved,
     onInteract: (state) => (state.isUpperPivoted ? { isBCGRemoved: true } : null),
     errorMessage: (state) =>
@@ -450,6 +520,7 @@ const createParts = (): PartData[] => [
     size: [0.4, 0.15, 0.3],
     parentId: "upper_receiver",
     mass: 0.05, // kg
+    category: "Component",
     canInteract: (state) => state.isBCGRemoved && !state.isChargingHandleRemoved,
     onInteract: (state) => (state.isBCGRemoved ? { isChargingHandleRemoved: true } : null),
     errorMessage: (state) =>
@@ -523,6 +594,7 @@ export const AssemblyViewer: React.FC = () => {
   const parts = useMemo(() => createParts(), []);
   const stepStatus = getStepStatus(disassemblyState);
   const physicsData = useMemo(() => calculatePhysics(parts, disassemblyState), [parts, disassemblyState]);
+  const complianceData = useMemo(() => checkCompliance(parts), [parts]);
 
   const handlePartClick = useCallback(
     (partId: string) => {
@@ -580,11 +652,13 @@ export const AssemblyViewer: React.FC = () => {
         name: "AR15_Build",
         totalMass: physicsData.totalMass,
         cogDescription: cogDesc,
+        nfaStatus: complianceData.status,
+        nfaDetails: complianceData.details,
         parts: parts.map((p) => ({
-          category: p.parentId ? "Component" : "Receiver",
+          category: p.category || "Component",
           name: p.name,
           mass: p.mass,
-          nfaStatus: "Non-NFA (Standard)",
+          nfaStatus: p.category === "Barrel" && p.length ? `${p.length}" barrel` : "N/A",
         })),
       };
 
@@ -596,7 +670,7 @@ export const AssemblyViewer: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [parts, physicsData]);
+  }, [parts, physicsData, complianceData]);
 
   const isComplete = stepStatus.step === stepStatus.total;
   const selectedPartData = parts.find((p) => p.id === selectedPart);
@@ -619,6 +693,19 @@ export const AssemblyViewer: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* NFA Compliance Banner */}
+        <div className={`rounded-lg p-3 border ${complianceData.isNFA ? "bg-red-500/10 border-red-500/50" : "bg-green-500/10 border-green-500/50"}`}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Badge variant={complianceData.isNFA ? "destructive" : "default"} className={!complianceData.isNFA ? "bg-green-600" : ""}>
+                {complianceData.isNFA ? "⚠️ NFA ITEM" : "✓ NON-NFA"}
+              </Badge>
+              <span className="font-medium text-sm">{complianceData.status}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{complianceData.details}</span>
+          </div>
+        </div>
+
         {/* Physics Stats & Current instruction */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="rounded-lg bg-muted/50 p-3 border">

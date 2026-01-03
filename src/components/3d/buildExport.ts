@@ -15,6 +15,8 @@ interface BuildExportData {
   name: string;
   totalMass: number;
   cogDescription: string;
+  nfaStatus?: string;
+  nfaDetails?: string;
   parts: PartExportData[];
 }
 
@@ -58,6 +60,21 @@ export const generateBuildExport = async (
   doc.text(`Total Mass: ${(buildData.totalMass * 2.20462).toFixed(2)} lbs (${buildData.totalMass.toFixed(3)} kg)`, 15, currentY + 10);
   doc.text(`Balance Point: ${buildData.cogDescription}`, 15, currentY + 17);
   currentY += 30;
+
+  // 2.5 NFA Compliance Status
+  if (buildData.nfaStatus) {
+    const isNFA = buildData.nfaStatus.includes("NFA REGULATED");
+    doc.setFontSize(12);
+    doc.setTextColor(isNFA ? 200 : 0, isNFA ? 0 : 128, 0);
+    doc.text(`Compliance: ${buildData.nfaStatus}`, 10, currentY);
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    if (buildData.nfaDetails) {
+      doc.text(buildData.nfaDetails, 15, currentY + 7, { maxWidth: 175 });
+    }
+    doc.setTextColor(0, 0, 0);
+    currentY += 18;
+  }
 
   // 3. Parts List Table
   autoTable(doc, {
