@@ -1,7 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
-// PDF Build Export Utility
+
+// PDF Build Export Utility - Generates specification documents for firearm builds
 
 interface PartExportData {
   category: string;
