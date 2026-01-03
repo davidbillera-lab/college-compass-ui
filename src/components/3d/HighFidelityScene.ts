@@ -12,6 +12,7 @@ export interface HighFidelitySceneContext {
   controls: OrbitControls;
   loadFirearmPart: (url: string, partName: string) => Promise<THREE.Object3D>;
   loadHDREnvironment: (url: string) => Promise<void>;
+  snapToSocket: (newPart: THREE.Object3D, basePart: THREE.Object3D, socketName: string) => boolean;
   animate: () => void;
   dispose: () => void;
   resize: () => void;
@@ -183,7 +184,56 @@ export const initHighFidelityScene = (options: HighFidelitySceneOptions): HighFi
     });
   };
 
-  // 9. Animation loop
+  // 9. Socket/Plug Snapping System
+  /**
+   * Snaps a new part's plug to a base part's socket
+   * Socket naming convention: 'Socket_<type>' (e.g., 'Socket_Grip', 'Socket_Stock')
+   * Plug naming convention: 'Plug' or 'Plug_<type>'
+   */
+  const snapToSocket = (
+    newPart: THREE.Object3D, 
+    basePart: THREE.Object3D, 
+    socketName: string
+  ): boolean => {
+    // 1. Find the specific socket on the base (e.g., 'Socket_Grip')
+    const socket = basePart.getObjectByName(socketName);
+    // 2. Find the plug on the new part (e.g., 'Plug')
+    const plug = newPart.getObjectByName('Plug') || 
+                 newPart.getObjectByName(`Plug_${socketName.replace('Socket_', '')}`);
+
+    if (socket && plug) {
+      // 3. Calculate the offset so the Plug sits exactly on the Socket
+      const worldPosition = new THREE.Vector3();
+      socket.getWorldPosition(worldPosition);
+      
+      // Account for plug offset within the new part
+      const plugLocalPosition = new THREE.Vector3();
+      plug.getWorldPosition(plugLocalPosition);
+      const plugOffset = plugLocalPosition.clone().sub(newPart.position);
+      
+      newPart.position.copy(worldPosition).sub(plugOffset);
+      
+      // 4. Match the rotation so the part isn't upside down
+      const worldQuaternion = new THREE.Quaternion();
+      socket.getWorldQuaternion(worldQuaternion);
+      newPart.quaternion.copy(worldQuaternion);
+      
+      // 5. Parent it so they move together
+      basePart.attach(newPart);
+      
+      // Store connection metadata
+      newPart.userData.attachedTo = basePart.userData.partName || 'base';
+      newPart.userData.socket = socketName;
+      
+      console.log(`Snapped ${newPart.userData.partName || 'part'} to ${socketName}`);
+      return true;
+    }
+    
+    console.warn(`Socket ${socketName} or Plug not found for snapping`);
+    return false;
+  };
+
+  // 10. Animation loop
   let animationFrameId: number;
   
   const animate = () => {
@@ -241,6 +291,7 @@ export const initHighFidelityScene = (options: HighFidelitySceneOptions): HighFi
     controls,
     loadFirearmPart,
     loadHDREnvironment,
+    snapToSocket,
     animate,
     dispose,
     resize,
