@@ -9,7 +9,6 @@ import {
   GraduationCap,
   Award,
   FileText,
-  ShieldCheck,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -29,9 +28,8 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['student', 'parent', 'counselor'] },
   { href: "/profile", label: "Profile Builder", icon: User, roles: ['student'] },
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
-  { href: "/scholarships", label: "Scholarships", icon: Award, badge: "3 new", roles: ['student', 'parent'] },
+  { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
-  { href: "/verification", label: "Verification", icon: ShieldCheck, roles: ['student', 'counselor'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];
 
