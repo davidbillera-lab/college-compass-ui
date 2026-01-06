@@ -128,6 +128,7 @@ export type Database = {
           motivations: string | null
           preferred_environments: string | null
           preferred_name: string | null
+          profile_extras: Json | null
           proud_moment: string | null
           region: string | null
           sat_score: number | null
@@ -159,6 +160,7 @@ export type Database = {
           motivations?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          profile_extras?: Json | null
           proud_moment?: string | null
           region?: string | null
           sat_score?: number | null
@@ -190,6 +192,7 @@ export type Database = {
           motivations?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          profile_extras?: Json | null
           proud_moment?: string | null
           region?: string | null
           sat_score?: number | null
