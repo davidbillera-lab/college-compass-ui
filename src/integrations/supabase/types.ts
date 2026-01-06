@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      college_matches: {
+        Row: {
+          bucket: string
+          college_id: string
+          created_at: string
+          fit_score: number
+          id: string
+          notes: string | null
+          shortlist_status: string | null
+          student_id: string
+          updated_at: string
+          why_fit: string | null
+        }
+        Insert: {
+          bucket: string
+          college_id: string
+          created_at?: string
+          fit_score: number
+          id?: string
+          notes?: string | null
+          shortlist_status?: string | null
+          student_id: string
+          updated_at?: string
+          why_fit?: string | null
+        }
+        Update: {
+          bucket?: string
+          college_id?: string
+          created_at?: string
+          fit_score?: number
+          id?: string
+          notes?: string | null
+          shortlist_status?: string | null
+          student_id?: string
+          updated_at?: string
+          why_fit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "college_matches_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "college_matches_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      colleges: {
+        Row: {
+          created_at: string
+          id: string
+          majors: string | null
+          name: string
+          region: string | null
+          size: string | null
+          state: string | null
+          sticker_usd: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          majors?: string | null
+          name: string
+          region?: string | null
+          size?: string | null
+          state?: string | null
+          sticker_usd?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          majors?: string | null
+          name?: string
+          region?: string | null
+          size?: string | null
+          state?: string | null
+          sticker_usd?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           academic_narrative: string | null
@@ -85,6 +172,128 @@ export type Database = {
           values?: string | null
         }
         Relationships: []
+      }
+      scholarship_pipeline_items: {
+        Row: {
+          created_at: string
+          due_at: string | null
+          id: string
+          notes: string | null
+          scholarship_id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          scholarship_id: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          scholarship_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scholarship_pipeline_items_scholarship_id_fkey"
+            columns: ["scholarship_id"]
+            isOneToOne: false
+            referencedRelation: "scholarships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scholarship_pipeline_items_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scholarships: {
+        Row: {
+          amount_usd: number | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          name: string
+          tags: string | null
+          url: string | null
+        }
+        Insert: {
+          amount_usd?: number | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          tags?: string | null
+          url?: string | null
+        }
+        Update: {
+          amount_usd?: number | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          tags?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          due_at: string | null
+          id: string
+          priority: number
+          source: string | null
+          student_id: string
+          title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          priority?: number
+          source?: string | null
+          student_id: string
+          title: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          priority?: number
+          source?: string | null
+          student_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
