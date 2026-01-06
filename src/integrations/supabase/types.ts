@@ -22,6 +22,7 @@ export type Database = {
           fit_score: number
           id: string
           notes: string | null
+          shortlist: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status: string | null
           student_id: string
           updated_at: string
@@ -34,6 +35,7 @@ export type Database = {
           fit_score: number
           id?: string
           notes?: string | null
+          shortlist?: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status?: string | null
           student_id: string
           updated_at?: string
@@ -46,6 +48,7 @@ export type Database = {
           fit_score?: number
           id?: string
           notes?: string | null
+          shortlist?: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status?: string | null
           student_id?: string
           updated_at?: string
@@ -105,69 +108,93 @@ export type Database = {
         Row: {
           academic_narrative: string | null
           act_score: number | null
+          budget_max_usd: number | null
+          campus_size: string | null
+          challenge: string | null
           class_rank: string | null
           context_notes: string | null
           coursework_rigor: string | null
           created_at: string
+          full_name: string | null
           gpa_scale: number | null
           gpa_unweighted: number | null
           gpa_weighted: number | null
+          grad_year: number | null
           graduation_year: number | null
           id: string
+          impact: string | null
           intended_majors: string[] | null
           interests: string | null
           motivations: string | null
           preferred_environments: string | null
           preferred_name: string | null
+          proud_moment: string | null
           region: string | null
           sat_score: number | null
           school: string | null
+          test_policy: string | null
           updated_at: string
           values: string | null
         }
         Insert: {
           academic_narrative?: string | null
           act_score?: number | null
+          budget_max_usd?: number | null
+          campus_size?: string | null
+          challenge?: string | null
           class_rank?: string | null
           context_notes?: string | null
           coursework_rigor?: string | null
           created_at?: string
+          full_name?: string | null
           gpa_scale?: number | null
           gpa_unweighted?: number | null
           gpa_weighted?: number | null
+          grad_year?: number | null
           graduation_year?: number | null
           id: string
+          impact?: string | null
           intended_majors?: string[] | null
           interests?: string | null
           motivations?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          proud_moment?: string | null
           region?: string | null
           sat_score?: number | null
           school?: string | null
+          test_policy?: string | null
           updated_at?: string
           values?: string | null
         }
         Update: {
           academic_narrative?: string | null
           act_score?: number | null
+          budget_max_usd?: number | null
+          campus_size?: string | null
+          challenge?: string | null
           class_rank?: string | null
           context_notes?: string | null
           coursework_rigor?: string | null
           created_at?: string
+          full_name?: string | null
           gpa_scale?: number | null
           gpa_unweighted?: number | null
           gpa_weighted?: number | null
+          grad_year?: number | null
           graduation_year?: number | null
           id?: string
+          impact?: string | null
           intended_majors?: string[] | null
           interests?: string | null
           motivations?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          proud_moment?: string | null
           region?: string | null
           sat_score?: number | null
           school?: string | null
+          test_policy?: string | null
           updated_at?: string
           values?: string | null
         }
@@ -179,6 +206,7 @@ export type Database = {
           due_at: string | null
           id: string
           notes: string | null
+          pipeline_status: Database["public"]["Enums"]["pipeline_status"] | null
           scholarship_id: string
           status: string
           student_id: string
@@ -189,6 +217,9 @@ export type Database = {
           due_at?: string | null
           id?: string
           notes?: string | null
+          pipeline_status?:
+            | Database["public"]["Enums"]["pipeline_status"]
+            | null
           scholarship_id: string
           status?: string
           student_id: string
@@ -199,6 +230,9 @@ export type Database = {
           due_at?: string | null
           id?: string
           notes?: string | null
+          pipeline_status?:
+            | Database["public"]["Enums"]["pipeline_status"]
+            | null
           scholarship_id?: string
           status?: string
           student_id?: string
@@ -303,7 +337,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      pipeline_status: "NOT_STARTED" | "DRAFTING" | "SUBMITTED"
+      shortlist_status: "INTERESTED" | "APPLYING" | "APPLIED" | "NOT_NOW"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -430,6 +465,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      pipeline_status: ["NOT_STARTED", "DRAFTING", "SUBMITTED"],
+      shortlist_status: ["INTERESTED", "APPLYING", "APPLIED", "NOT_NOW"],
+    },
   },
 } as const
