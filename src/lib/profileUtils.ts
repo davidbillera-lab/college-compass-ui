@@ -1,0 +1,86 @@
+export type Activity = {
+  name: string;
+  role?: string;
+  years?: string; // e.g. "10-12"
+  impact?: string; // 1–2 lines
+};
+
+export type ProfileExtras = {
+  activities?: Activity[];
+  honors?: { name: string; year?: number }[];
+  links?: { portfolio?: string; github?: string; linkedin?: string };
+  themes?: string[];
+};
+
+export type ProfileRow = {
+  user_id: string;
+  full_name?: string | null;
+  grad_year?: number | null;
+  gpa?: number | null;
+  test_policy?: string | null;
+  sat?: number | null;
+  act?: number | null;
+  intended_major?: string | null;
+  regions?: string | null;
+  budget_max_usd?: number | null;
+  campus_size?: string | null;
+  values?: string | null;
+  proud_moment?: string | null;
+  challenge?: string | null;
+  impact?: string | null;
+  profile_extras?: ProfileExtras | null;
+};
+
+function isNonEmpty(v: unknown) {
+  return typeof v === "string" ? v.trim().length > 0 : v != null;
+}
+
+function countActivities(extras?: ProfileExtras | null) {
+  const a = extras?.activities ?? [];
+  return Array.isArray(a) ? a.filter((x) => x?.name?.trim()).length : 0;
+}
+
+export function computeProfileSnapshot(profile: ProfileRow) {
+  // --- scoring weights (tweak anytime) ---
+  const items: { key: string; ok: boolean; weight: number }[] = [
+    { key: "full_name", ok: isNonEmpty(profile.full_name), weight: 8 },
+    { key: "grad_year", ok: !!profile.grad_year, weight: 6 },
+    { key: "gpa_or_tests", ok: !!profile.gpa || !!profile.sat || !!profile.act, weight: 10 },
+    { key: "intended_major", ok: isNonEmpty(profile.intended_major), weight: 10 },
+    { key: "regions", ok: isNonEmpty(profile.regions), weight: 8 },
+    { key: "budget", ok: !!profile.budget_max_usd, weight: 8 },
+    { key: "campus_size", ok: isNonEmpty(profile.campus_size), weight: 6 },
+    { key: "values", ok: isNonEmpty(profile.values), weight: 10 },
+    { key: "proud_moment", ok: isNonEmpty(profile.proud_moment), weight: 12 },
+    { key: "impact", ok: isNonEmpty(profile.impact), weight: 10 },
+    { key: "activities_2plus", ok: countActivities(profile.profile_extras) >= 2, weight: 10 },
+  ];
+
+  const total = items.reduce((s, i) => s + i.weight, 0);
+  const earned = items.reduce((s, i) => s + (i.ok ? i.weight : 0), 0);
+  const completeness = Math.round((earned / total) * 100);
+
+  const narrativeReady =
+    isNonEmpty(profile.values) &&
+    isNonEmpty(profile.proud_moment) &&
+    isNonEmpty(profile.impact);
+
+  const matchReady =
+    isNonEmpty(profile.intended_major) &&
+    isNonEmpty(profile.regions) &&
+    (!!profile.budget_max_usd || isNonEmpty(profile.campus_size));
+
+  const scholarshipReady =
+    narrativeReady && countActivities(profile.profile_extras) >= 2;
+
+  const missing = items.filter((i) => !i.ok).map((i) => i.key);
+
+  return {
+    completeness,
+    narrativeReady,
+    matchReady,
+    scholarshipReady,
+    missing,
+    activityCount: countActivities(profile.profile_extras),
+  };
+}
