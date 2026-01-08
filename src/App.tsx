@@ -13,6 +13,13 @@ import Essays from "./pages/Essays";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
+import OnboardingGate from "./onboarding/OnboardingGate";
+import WelcomePage from "./onboarding/WelcomePage";
+import OnboardingBasicsPage from "./onboarding/OnboardingBasicsPage";
+import OnboardingStoryPage from "./onboarding/OnboardingStoryPage";
+import OnboardingActivitiesPage from "./onboarding/OnboardingActivitiesPage";
+import OnboardingResultsPage from "./onboarding/OnboardingResultsPage";
+
 export default function App() {
   return (
     <AppProvider>
@@ -20,6 +27,14 @@ export default function App() {
         <Routes>
           {/* Auth route */}
           <Route path="/auth" element={<AuthPage />} />
+          
+          {/* Onboarding routes */}
+          <Route path="/start" element={<OnboardingGate />} />
+          <Route path="/welcome" element={<WelcomePage />} />
+          <Route path="/onboarding/basics" element={<OnboardingBasicsPage />} />
+          <Route path="/onboarding/story" element={<OnboardingStoryPage />} />
+          <Route path="/onboarding/activities" element={<OnboardingActivitiesPage />} />
+          <Route path="/onboarding/results" element={<OnboardingResultsPage />} />
           
           {/* Protected app routes with sidebar layout */}
           <Route element={<ProtectedRoute />}>

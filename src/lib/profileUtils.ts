@@ -13,15 +13,18 @@ export type ProfileExtras = {
 };
 
 export type ProfileRow = {
-  user_id: string;
+  id: string;
   full_name?: string | null;
   grad_year?: number | null;
-  gpa?: number | null;
+  gpa_unweighted?: number | null;
+  gpa_weighted?: number | null;
   test_policy?: string | null;
-  sat?: number | null;
-  act?: number | null;
+  sat_score?: number | null;
+  act_score?: number | null;
   intended_major?: string | null;
+  intended_majors?: string[] | null;
   regions?: string | null;
+  region?: string | null;
   budget_max_usd?: number | null;
   campus_size?: string | null;
   values?: string | null;
@@ -45,9 +48,9 @@ export function computeProfileSnapshot(profile: ProfileRow) {
   const items: { key: string; ok: boolean; weight: number }[] = [
     { key: "full_name", ok: isNonEmpty(profile.full_name), weight: 8 },
     { key: "grad_year", ok: !!profile.grad_year, weight: 6 },
-    { key: "gpa_or_tests", ok: !!profile.gpa || !!profile.sat || !!profile.act, weight: 10 },
-    { key: "intended_major", ok: isNonEmpty(profile.intended_major), weight: 10 },
-    { key: "regions", ok: isNonEmpty(profile.regions), weight: 8 },
+    { key: "gpa_or_tests", ok: !!profile.gpa_unweighted || !!profile.gpa_weighted || !!profile.sat_score || !!profile.act_score, weight: 10 },
+    { key: "intended_major", ok: isNonEmpty(profile.intended_major) || (profile.intended_majors?.length ?? 0) > 0, weight: 10 },
+    { key: "regions", ok: isNonEmpty(profile.regions) || isNonEmpty(profile.region), weight: 8 },
     { key: "budget", ok: !!profile.budget_max_usd, weight: 8 },
     { key: "campus_size", ok: isNonEmpty(profile.campus_size), weight: 6 },
     { key: "values", ok: isNonEmpty(profile.values), weight: 10 },

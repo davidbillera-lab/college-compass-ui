@@ -17,15 +17,18 @@ export default function ProfilePage() {
       const p = await ensureProfileRow();
       // Map database row to ProfileRow type
       const mapped: ProfileRow = {
-        user_id: p.id,
+        id: p.id,
         full_name: p.full_name,
         grad_year: p.grad_year,
-        gpa: p.gpa_unweighted ?? p.gpa_weighted ?? null,
+        gpa_unweighted: p.gpa_unweighted,
+        gpa_weighted: p.gpa_weighted,
         test_policy: p.test_policy,
-        sat: p.sat_score,
-        act: p.act_score,
+        sat_score: p.sat_score,
+        act_score: p.act_score,
         intended_major: p.intended_majors?.join(", ") ?? null,
+        intended_majors: p.intended_majors,
         regions: p.region,
+        region: p.region,
         budget_max_usd: p.budget_max_usd,
         campus_size: p.campus_size,
         values: p.values,
