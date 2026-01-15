@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
-import StudentProfile from "./pages/StudentProfile";
+import ProfilePage from "./pages/ProfilePage";
 import CollegeMatches from "./pages/CollegeMatches";
 import Scholarships from "./pages/Scholarships";
 import Essays from "./pages/Essays";
@@ -41,7 +41,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/profile" element={<StudentProfile />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/colleges" element={<CollegeMatches />} />
               <Route path="/scholarships" element={<Scholarships />} />
               <Route path="/essays" element={<Essays />} />
