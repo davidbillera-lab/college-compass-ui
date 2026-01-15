@@ -48,9 +48,10 @@ export async function ensureProfileRow() {
 
 export async function saveProfileExtras(extras: ProfileExtras) {
   const userId = await requireUserId();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from("profiles")
-    .update({ profile_extras: extras })
+    .update({ profile_extras: extras as any })
     .eq("id", userId);
 
   if (error) throw error;
