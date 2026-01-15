@@ -1,11 +1,20 @@
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Lock, Eye, Palette, Download } from "lucide-react";
-
+import { Bell, Lock, Palette, Download, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 export default function Settings() {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -99,26 +108,20 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Data Export */}
+      {/* Account */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5 text-primary" />
-            Data & Export
+            <LogOut className="h-5 w-5 text-primary" />
+            Account
           </CardTitle>
-          <CardDescription>Download or manage your data</CardDescription>
+          <CardDescription>Manage your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export Profile (PDF)
-            </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Download All Data
-            </Button>
-          </div>
+          <Button variant="destructive" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </CardContent>
       </Card>
     </div>
