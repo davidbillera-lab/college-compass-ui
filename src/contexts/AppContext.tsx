@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, mockUser } from '@/lib/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppContextType {
   currentRole: UserRole;
@@ -15,7 +17,31 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentRole, setCurrentRole] = useState<UserRole>('student');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('Student');
+  const [profileStrength, setProfileStrength] = useState(mockUser.profileStrength);
   
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setIsLoggedIn(true);
+      // Fetch profile name from database
+      supabase
+        .from('profiles')
+        .select('full_name, preferred_name')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setUserName(data.preferred_name || data.full_name || 'Student');
+          }
+        });
+    } else {
+      setIsLoggedIn(false);
+      setUserName('Student');
+    }
+  }, [user]);
+
   return (
     <AppContext.Provider
       value={{
@@ -23,8 +49,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCurrentRole,
         isLoggedIn,
         setIsLoggedIn,
-        userName: mockUser.name,
-        profileStrength: mockUser.profileStrength,
+        userName,
+        profileStrength,
       }}
     >
       {children}
