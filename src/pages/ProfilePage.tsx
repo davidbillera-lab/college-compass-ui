@@ -6,14 +6,19 @@ import PersonalStorySection from "@/components/profile/PersonalStorySection";
 import TestScoresSection from "@/components/profile/TestScoresSection";
 import VerificationSection from "@/components/profile/VerificationSection";
 import VideoShowcaseSection from "@/components/profile/VideoShowcaseSection";
+import CoreBasicsSection, { type CoreBasicsData } from "@/components/profile/CoreBasicsSection";
 import { ensureProfileRow, normalizeExtras, saveProfileExtras } from "@/lib/profileExtrasApi";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, BookOpen, Calculator, ShieldCheck, Video, Activity } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
+  const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [extras, setExtras] = useState<ProfileExtras>({});
+  const [coreData, setCoreData] = useState<CoreBasicsData>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -45,6 +50,22 @@ export default function ProfilePage() {
       };
       setProfile(mapped);
       setExtras(normalizeExtras(p.profile_extras));
+      
+      // Set core data from database
+      setCoreData({
+        fullName: p.full_name || undefined,
+        preferredName: p.preferred_name || undefined,
+        graduationYear: p.grad_year || undefined,
+        school: p.school || undefined,
+        state: p.region || undefined,
+        gpaUnweighted: p.gpa_unweighted || undefined,
+        gpaWeighted: p.gpa_weighted || undefined,
+        classRank: p.class_rank || undefined,
+        courseworkRigor: p.coursework_rigor || undefined,
+        intendedMajors: p.intended_majors || [],
+        academicNarrative: p.academic_narrative || undefined,
+        contextNotes: p.context_notes || undefined,
+      });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed to load profile";
       setErr(message);
@@ -59,11 +80,47 @@ export default function ProfilePage() {
     setSaving(true);
     setErr(null);
     try {
+      // Save extras (personal story, test scores, videos, verification)
       await saveProfileExtras(extras);
+      
+      // Save core profile data to the profiles table
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: coreData.fullName || null,
+            preferred_name: coreData.preferredName || null,
+            grad_year: coreData.graduationYear || null,
+            graduation_year: coreData.graduationYear || null,
+            school: coreData.school || null,
+            region: coreData.state || null,
+            gpa_unweighted: coreData.gpaUnweighted || null,
+            gpa_weighted: coreData.gpaWeighted || null,
+            class_rank: coreData.classRank || null,
+            coursework_rigor: coreData.courseworkRigor || null,
+            intended_majors: coreData.intendedMajors || null,
+            academic_narrative: coreData.academicNarrative || null,
+            context_notes: coreData.contextNotes || null,
+          })
+          .eq("id", userData.user.id);
+
+        if (profileError) throw profileError;
+      }
+      
       await load();
+      toast({
+        title: "Profile saved",
+        description: "Your profile has been updated successfully.",
+      });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Failed to save extras";
+      const message = e instanceof Error ? e.message : "Failed to save profile";
       setErr(message);
+      toast({
+        title: "Error saving profile",
+        description: message,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -90,15 +147,19 @@ export default function ProfilePage() {
     <div className="space-y-6 p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">My Profile</h1>
-        <Button onClick={save} disabled={saving}>
+        <Button onClick={save} disabled={saving} size="lg">
           {saving ? "Saving…" : "Save All Changes"}
         </Button>
       </div>
 
       <ProfileSnapshotCard profile={profile} />
 
-      <Tabs defaultValue="story" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-5">
+      <Tabs defaultValue="basics" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="basics" className="flex items-center gap-1 text-xs sm:text-sm">
+            <User className="h-4 w-4 hidden sm:inline" />
+            Basics
+          </TabsTrigger>
           <TabsTrigger value="story" className="flex items-center gap-1 text-xs sm:text-sm">
             <BookOpen className="h-4 w-4 hidden sm:inline" />
             Story
@@ -120,6 +181,14 @@ export default function ProfilePage() {
             Docs
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="basics" className="mt-6">
+          <CoreBasicsSection
+            data={coreData}
+            onChange={setCoreData}
+            onSave={save}
+          />
+        </TabsContent>
 
         <TabsContent value="story" className="mt-6">
           <PersonalStorySection
