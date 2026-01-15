@@ -1,3 +1,7 @@
+import type { TestScoresData } from "@/components/profile/TestScoresSection";
+import type { VerificationData } from "@/components/profile/VerificationSection";
+import type { VideoShowcaseData } from "@/components/profile/VideoShowcaseSection";
+
 export type Activity = {
   name: string;
   role?: string;
@@ -5,11 +9,26 @@ export type Activity = {
   impact?: string; // 1–2 lines
 };
 
+export type PersonalStoryData = {
+  background?: string;
+  values?: string;
+  proudMoment?: string;
+  challenge?: string;
+  impact?: string;
+  uniquePerspective?: string;
+  communityRole?: string;
+  futureVision?: string;
+};
+
 export type ProfileExtras = {
   activities?: Activity[];
   honors?: { name: string; year?: number }[];
   links?: { portfolio?: string; github?: string; linkedin?: string };
   themes?: string[];
+  personalStory?: PersonalStoryData;
+  testScores?: TestScoresData;
+  verification?: VerificationData;
+  videoShowcase?: VideoShowcaseData;
 };
 
 export type ProfileRow = {
