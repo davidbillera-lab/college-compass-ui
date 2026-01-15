@@ -25,8 +25,9 @@ export default function App() {
     <AppProvider>
       <BrowserRouter>
         <Routes>
-          {/* Auth route */}
+          {/* Auth routes */}
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/login" element={<Navigate to="/auth" replace />} />
           
           {/* Onboarding routes */}
           <Route path="/start" element={<OnboardingGate />} />
