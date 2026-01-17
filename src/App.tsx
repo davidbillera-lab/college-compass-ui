@@ -44,6 +44,8 @@ export default function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/colleges" element={<CollegeMatches />} />
               <Route path="/scholarships" element={<Scholarships />} />
+              <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
+              <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
               <Route path="/essays" element={<Essays />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
