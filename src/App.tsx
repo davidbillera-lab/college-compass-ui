@@ -12,6 +12,8 @@ import Scholarships from "./pages/Scholarships";
 import Essays from "./pages/Essays";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import ScholarshipsIntelPage from "./pages/ScholarshipsIntelPage";
+import ScholarshipsIntelAdminPage from "./pages/ScholarshipsIntelAdminPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
