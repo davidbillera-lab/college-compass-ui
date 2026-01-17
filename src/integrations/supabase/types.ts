@@ -203,6 +203,47 @@ export type Database = {
         }
         Relationships: []
       }
+      scholarship_matches: {
+        Row: {
+          created_at: string | null
+          eligibility_status: string
+          id: string
+          missing_fields: Json | null
+          reasons: string
+          scholarship_id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          eligibility_status: string
+          id?: string
+          missing_fields?: Json | null
+          reasons: string
+          scholarship_id: string
+          score: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          eligibility_status?: string
+          id?: string
+          missing_fields?: Json | null
+          reasons?: string
+          scholarship_id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scholarship_matches_scholarship_id_fkey"
+            columns: ["scholarship_id"]
+            isOneToOne: false
+            referencedRelation: "scholarships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scholarship_pipeline_items: {
         Row: {
           created_at: string
@@ -258,35 +299,137 @@ export type Database = {
           },
         ]
       }
+      scholarship_questions: {
+        Row: {
+          answer_type: string
+          applies_to: Json | null
+          created_at: string | null
+          id: string
+          key: string
+          options: Json | null
+          question_text: string
+        }
+        Insert: {
+          answer_type: string
+          applies_to?: Json | null
+          created_at?: string | null
+          id?: string
+          key: string
+          options?: Json | null
+          question_text: string
+        }
+        Update: {
+          answer_type?: string
+          applies_to?: Json | null
+          created_at?: string | null
+          id?: string
+          key?: string
+          options?: Json | null
+          question_text?: string
+        }
+        Relationships: []
+      }
+      scholarship_user_answers: {
+        Row: {
+          answer_json: Json
+          id: string
+          question_key: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          answer_json: Json
+          id?: string
+          question_key: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          answer_json?: Json
+          id?: string
+          question_key?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scholarships: {
         Row: {
+          amount_max_usd: number | null
+          amount_min_usd: number | null
           amount_usd: number | null
+          career_tags: string | null
           created_at: string
           deadline: string | null
+          deadline_date: string | null
           description: string | null
+          education_level: string | null
           id: string
+          last_crawled_at: string | null
+          location_scope: string | null
+          major_tags: string | null
           name: string
+          normalized_criteria: Json | null
+          provider: string | null
+          raw_eligibility_text: string | null
+          rolling_deadline: boolean | null
+          source_type: string | null
+          source_url: string | null
+          status: string | null
           tags: string | null
+          updated_at: string | null
           url: string | null
         }
         Insert: {
+          amount_max_usd?: number | null
+          amount_min_usd?: number | null
           amount_usd?: number | null
+          career_tags?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_date?: string | null
           description?: string | null
+          education_level?: string | null
           id?: string
+          last_crawled_at?: string | null
+          location_scope?: string | null
+          major_tags?: string | null
           name: string
+          normalized_criteria?: Json | null
+          provider?: string | null
+          raw_eligibility_text?: string | null
+          rolling_deadline?: boolean | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
           tags?: string | null
+          updated_at?: string | null
           url?: string | null
         }
         Update: {
+          amount_max_usd?: number | null
+          amount_min_usd?: number | null
           amount_usd?: number | null
+          career_tags?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_date?: string | null
           description?: string | null
+          education_level?: string | null
           id?: string
+          last_crawled_at?: string | null
+          location_scope?: string | null
+          major_tags?: string | null
           name?: string
+          normalized_criteria?: Json | null
+          provider?: string | null
+          raw_eligibility_text?: string | null
+          rolling_deadline?: boolean | null
+          source_type?: string | null
+          source_url?: string | null
+          status?: string | null
           tags?: string | null
+          updated_at?: string | null
           url?: string | null
         }
         Relationships: []
