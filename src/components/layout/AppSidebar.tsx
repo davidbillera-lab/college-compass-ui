@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Search,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile Builder", icon: User, roles: ['student'] },
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
   { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
+  { href: "/scholarships-intel", label: "Scholarships Intel", icon: Search, badge: "New", roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];
