@@ -25,7 +25,11 @@ const publicNavLinks = [
   { href: "/pricing", label: "Pricing" },
 ];
 
-export function TopNavbar() {
+interface TopNavbarProps {
+  onMenuClick?: () => void;
+}
+
+export function TopNavbar({ onMenuClick }: TopNavbarProps) {
   const { isLoggedIn, setIsLoggedIn, userName } = useApp();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -71,38 +75,50 @@ export function TopNavbar() {
         {/* Right side */}
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-9 w-9 border-2 border-primary/20">
-                    <AvatarFallback className="bg-primary-light text-primary font-semibold text-sm">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium text-foreground">{userName}</p>
-                  <p className="text-xs text-muted-foreground">Student Account</p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => setIsLoggedIn(false)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              {/* Mobile menu button for logged in users */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={onMenuClick}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-9 w-9 border-2 border-primary/20">
+                      <AvatarFallback className="bg-primary-light text-primary font-semibold text-sm">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium text-foreground">{userName}</p>
+                    <p className="text-xs text-muted-foreground">Student Account</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => setIsLoggedIn(false)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button variant="ghost" asChild className="hidden md:inline-flex">
