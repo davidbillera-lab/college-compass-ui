@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GraduationCap, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,7 +20,9 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAutoLogging, setIsAutoLogging] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const autoLoginAttempted = useRef(false);
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +34,47 @@ export default function AuthPage() {
       navigate('/dashboard');
     }
   }, [user, loading, navigate]);
+
+  // Dev auto-login: attempt once when page loads
+  useEffect(() => {
+    if (loading || user || autoLoginAttempted.current) return;
+    
+    autoLoginAttempted.current = true;
+    
+    const attemptDevAutoLogin = async () => {
+      setIsAutoLogging(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('dev-auto-login');
+        
+        if (error) {
+          console.log('Dev auto-login not available:', error.message);
+          setIsAutoLogging(false);
+          return;
+        }
+
+        if (data?.success && data?.session) {
+          // Set the session from the response
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+          toast({
+            title: 'Dev Auto-Login',
+            description: 'Signed in automatically for development.',
+          });
+          navigate('/dashboard');
+        } else {
+          console.log('Dev auto-login credentials not configured');
+          setIsAutoLogging(false);
+        }
+      } catch (err) {
+        console.log('Dev auto-login failed:', err);
+        setIsAutoLogging(false);
+      }
+    };
+
+    attemptDevAutoLogin();
+  }, [loading, user, navigate, toast]);
 
   const validateForm = () => {
     try {
@@ -98,10 +142,13 @@ export default function AuthPage() {
     }
   };
 
-  if (loading) {
+  if (loading || isAutoLogging) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {isAutoLogging && (
+          <p className="text-sm text-muted-foreground">Signing in automatically...</p>
+        )}
       </div>
     );
   }
