@@ -16,11 +16,15 @@ export type Database = {
     Tables: {
       college_matches: {
         Row: {
+          academic_match_score: number | null
+          activities_match_score: number | null
           bucket: string
           college_id: string
           created_at: string
+          financial_match_score: number | null
           fit_score: number
           id: string
+          location_match_score: number | null
           notes: string | null
           shortlist: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status: string | null
@@ -29,11 +33,15 @@ export type Database = {
           why_fit: string | null
         }
         Insert: {
+          academic_match_score?: number | null
+          activities_match_score?: number | null
           bucket: string
           college_id: string
           created_at?: string
+          financial_match_score?: number | null
           fit_score: number
           id?: string
+          location_match_score?: number | null
           notes?: string | null
           shortlist?: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status?: string | null
@@ -42,11 +50,15 @@ export type Database = {
           why_fit?: string | null
         }
         Update: {
+          academic_match_score?: number | null
+          activities_match_score?: number | null
           bucket?: string
           college_id?: string
           created_at?: string
+          financial_match_score?: number | null
           fit_score?: number
           id?: string
+          location_match_score?: number | null
           notes?: string | null
           shortlist?: Database["public"]["Enums"]["shortlist_status"] | null
           shortlist_status?: string | null
@@ -73,34 +85,112 @@ export type Database = {
       }
       colleges: {
         Row: {
+          acceptance_rate: number | null
+          act_range_high: number | null
+          act_range_low: number | null
+          athletics_division: string | null
+          avg_financial_aid: number | null
+          avg_gpa: number | null
+          city: string | null
           created_at: string
+          graduation_rate: number | null
           id: string
+          last_crawled_at: string | null
+          logo_url: string | null
           majors: string | null
           name: string
+          notable_programs: string[] | null
           region: string | null
+          religious_affiliation: string | null
+          retention_rate: number | null
+          sat_range_high: number | null
+          sat_range_low: number | null
+          setting: string | null
           size: string | null
+          source_type: string | null
+          source_url: string | null
+          sports: string[] | null
           state: string | null
           sticker_usd: number | null
+          student_faculty_ratio: number | null
+          student_population: number | null
+          tuition_in_state: number | null
+          tuition_out_state: number | null
+          type: string | null
+          updated_at: string | null
+          website_url: string | null
         }
         Insert: {
+          acceptance_rate?: number | null
+          act_range_high?: number | null
+          act_range_low?: number | null
+          athletics_division?: string | null
+          avg_financial_aid?: number | null
+          avg_gpa?: number | null
+          city?: string | null
           created_at?: string
+          graduation_rate?: number | null
           id?: string
+          last_crawled_at?: string | null
+          logo_url?: string | null
           majors?: string | null
           name: string
+          notable_programs?: string[] | null
           region?: string | null
+          religious_affiliation?: string | null
+          retention_rate?: number | null
+          sat_range_high?: number | null
+          sat_range_low?: number | null
+          setting?: string | null
           size?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          sports?: string[] | null
           state?: string | null
           sticker_usd?: number | null
+          student_faculty_ratio?: number | null
+          student_population?: number | null
+          tuition_in_state?: number | null
+          tuition_out_state?: number | null
+          type?: string | null
+          updated_at?: string | null
+          website_url?: string | null
         }
         Update: {
+          acceptance_rate?: number | null
+          act_range_high?: number | null
+          act_range_low?: number | null
+          athletics_division?: string | null
+          avg_financial_aid?: number | null
+          avg_gpa?: number | null
+          city?: string | null
           created_at?: string
+          graduation_rate?: number | null
           id?: string
+          last_crawled_at?: string | null
+          logo_url?: string | null
           majors?: string | null
           name?: string
+          notable_programs?: string[] | null
           region?: string | null
+          religious_affiliation?: string | null
+          retention_rate?: number | null
+          sat_range_high?: number | null
+          sat_range_low?: number | null
+          setting?: string | null
           size?: string | null
+          source_type?: string | null
+          source_url?: string | null
+          sports?: string[] | null
           state?: string | null
           sticker_usd?: number | null
+          student_faculty_ratio?: number | null
+          student_population?: number | null
+          tuition_in_state?: number | null
+          tuition_out_state?: number | null
+          type?: string | null
+          updated_at?: string | null
+          website_url?: string | null
         }
         Relationships: []
       }
@@ -108,98 +198,158 @@ export type Database = {
         Row: {
           academic_narrative: string | null
           act_score: number | null
+          ap_courses: string[] | null
+          awards: string[] | null
           budget_max_usd: number | null
           campus_size: string | null
           challenge: string | null
+          citizenship: string | null
+          city: string | null
           class_rank: string | null
+          class_size: number | null
           context_notes: string | null
           coursework_rigor: string | null
           created_at: string
+          estimated_efc: number | null
+          financial_need: boolean | null
+          first_gen_college: boolean | null
           full_name: string | null
           gpa_scale: number | null
           gpa_unweighted: number | null
           gpa_weighted: number | null
           grad_year: number | null
           graduation_year: number | null
+          honors_courses: string[] | null
           id: string
           impact: string | null
           intended_majors: string[] | null
           interests: string | null
+          leadership_roles: string[] | null
+          max_distance_miles: number | null
           motivations: string | null
+          preferred_college_type: string | null
           preferred_environments: string | null
           preferred_name: string | null
+          preferred_setting: string | null
           profile_extras: Json | null
           proud_moment: string | null
+          psat_score: number | null
           region: string | null
           sat_score: number | null
           school: string | null
+          special_talents: string[] | null
+          sports_played: string[] | null
+          state: string | null
           test_policy: string | null
           updated_at: string
           values: string | null
+          volunteer_hours: number | null
+          work_experience_hours: number | null
+          zip_code: string | null
         }
         Insert: {
           academic_narrative?: string | null
           act_score?: number | null
+          ap_courses?: string[] | null
+          awards?: string[] | null
           budget_max_usd?: number | null
           campus_size?: string | null
           challenge?: string | null
+          citizenship?: string | null
+          city?: string | null
           class_rank?: string | null
+          class_size?: number | null
           context_notes?: string | null
           coursework_rigor?: string | null
           created_at?: string
+          estimated_efc?: number | null
+          financial_need?: boolean | null
+          first_gen_college?: boolean | null
           full_name?: string | null
           gpa_scale?: number | null
           gpa_unweighted?: number | null
           gpa_weighted?: number | null
           grad_year?: number | null
           graduation_year?: number | null
+          honors_courses?: string[] | null
           id: string
           impact?: string | null
           intended_majors?: string[] | null
           interests?: string | null
+          leadership_roles?: string[] | null
+          max_distance_miles?: number | null
           motivations?: string | null
+          preferred_college_type?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          preferred_setting?: string | null
           profile_extras?: Json | null
           proud_moment?: string | null
+          psat_score?: number | null
           region?: string | null
           sat_score?: number | null
           school?: string | null
+          special_talents?: string[] | null
+          sports_played?: string[] | null
+          state?: string | null
           test_policy?: string | null
           updated_at?: string
           values?: string | null
+          volunteer_hours?: number | null
+          work_experience_hours?: number | null
+          zip_code?: string | null
         }
         Update: {
           academic_narrative?: string | null
           act_score?: number | null
+          ap_courses?: string[] | null
+          awards?: string[] | null
           budget_max_usd?: number | null
           campus_size?: string | null
           challenge?: string | null
+          citizenship?: string | null
+          city?: string | null
           class_rank?: string | null
+          class_size?: number | null
           context_notes?: string | null
           coursework_rigor?: string | null
           created_at?: string
+          estimated_efc?: number | null
+          financial_need?: boolean | null
+          first_gen_college?: boolean | null
           full_name?: string | null
           gpa_scale?: number | null
           gpa_unweighted?: number | null
           gpa_weighted?: number | null
           grad_year?: number | null
           graduation_year?: number | null
+          honors_courses?: string[] | null
           id?: string
           impact?: string | null
           intended_majors?: string[] | null
           interests?: string | null
+          leadership_roles?: string[] | null
+          max_distance_miles?: number | null
           motivations?: string | null
+          preferred_college_type?: string | null
           preferred_environments?: string | null
           preferred_name?: string | null
+          preferred_setting?: string | null
           profile_extras?: Json | null
           proud_moment?: string | null
+          psat_score?: number | null
           region?: string | null
           sat_score?: number | null
           school?: string | null
+          special_talents?: string[] | null
+          sports_played?: string[] | null
+          state?: string | null
           test_policy?: string | null
           updated_at?: string
           values?: string | null
+          volunteer_hours?: number | null
+          work_experience_hours?: number | null
+          zip_code?: string | null
         }
         Relationships: []
       }

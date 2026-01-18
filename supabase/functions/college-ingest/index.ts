@@ -1,0 +1,484 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface IngestRequest {
+  startUrl: string;
+  maxPages?: number;
+}
+
+interface CollegeData {
+  name: string;
+  city?: string;
+  state?: string;
+  region?: string;
+  type?: string;
+  setting?: string;
+  size?: string;
+  acceptance_rate?: number;
+  sat_range_low?: number;
+  sat_range_high?: number;
+  act_range_low?: number;
+  act_range_high?: number;
+  avg_gpa?: number;
+  tuition_in_state?: number;
+  tuition_out_state?: number;
+  sticker_usd?: number;
+  avg_financial_aid?: number;
+  student_population?: number;
+  student_faculty_ratio?: number;
+  graduation_rate?: number;
+  retention_rate?: number;
+  athletics_division?: string;
+  sports?: string[];
+  notable_programs?: string[];
+  majors?: string;
+  religious_affiliation?: string;
+  website_url?: string;
+}
+
+// US State name to abbreviation mapping
+const stateAbbreviations: Record<string, string> = {
+  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+  'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+  'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT', 'vermont': 'VT',
+  'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY'
+};
+
+// Region mapping by state
+const stateRegions: Record<string, string> = {
+  'CT': 'Northeast', 'ME': 'Northeast', 'MA': 'Northeast', 'NH': 'Northeast', 'RI': 'Northeast', 'VT': 'Northeast',
+  'NJ': 'Northeast', 'NY': 'Northeast', 'PA': 'Northeast',
+  'IL': 'Midwest', 'IN': 'Midwest', 'MI': 'Midwest', 'OH': 'Midwest', 'WI': 'Midwest',
+  'IA': 'Midwest', 'KS': 'Midwest', 'MN': 'Midwest', 'MO': 'Midwest', 'NE': 'Midwest', 'ND': 'Midwest', 'SD': 'Midwest',
+  'DE': 'South', 'FL': 'South', 'GA': 'South', 'MD': 'South', 'NC': 'South', 'SC': 'South', 'VA': 'South', 'WV': 'South',
+  'AL': 'South', 'KY': 'South', 'MS': 'South', 'TN': 'South', 'AR': 'South', 'LA': 'South', 'OK': 'South', 'TX': 'South',
+  'AZ': 'West', 'CO': 'West', 'ID': 'West', 'MT': 'West', 'NV': 'West', 'NM': 'West', 'UT': 'West', 'WY': 'West',
+  'AK': 'West', 'CA': 'West', 'HI': 'West', 'OR': 'West', 'WA': 'West'
+};
+
+function extractColleges(markdown: string, pageUrl: string): CollegeData[] {
+  const colleges: CollegeData[] = [];
+  
+  // Split by college entries
+  const sections = markdown.split(/(?=#{1,3}\s|(?:\n\n|\r\n\r\n)(?=[A-Z][^a-z]*(?:University|College|Institute|School)))/i);
+  
+  for (const section of sections) {
+    if (section.length < 100) continue;
+    
+    // Look for college name
+    const nameMatch = section.match(/(?:^|\n)#+?\s*(.+?(?:University|College|Institute|School of|Academy).+?)(?:\n|$)/i) ||
+                     section.match(/\*\*(.+?(?:University|College|Institute|School).+?)\*\*/i);
+    
+    if (!nameMatch) continue;
+    
+    const name = nameMatch[1].trim().replace(/[#*]/g, '').substring(0, 200);
+    if (!name || name.length < 5) continue;
+    
+    const college: CollegeData = { name };
+    
+    // Extract location (City, State pattern)
+    const locationMatch = section.match(/(?:located in|in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),?\s+([A-Z]{2}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ||
+                         section.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s+([A-Z]{2})\s*(?:\d{5})?/);
+    if (locationMatch) {
+      college.city = locationMatch[1].trim();
+      const stateStr = locationMatch[2].trim();
+      college.state = stateStr.length === 2 ? stateStr.toUpperCase() : (stateAbbreviations[stateStr.toLowerCase()] || stateStr);
+      if (college.state && stateRegions[college.state]) {
+        college.region = stateRegions[college.state];
+      }
+    }
+    
+    // Extract type
+    if (/public university|public institution|state university|state college/i.test(section)) {
+      college.type = 'public';
+    } else if (/private university|private college|private institution/i.test(section)) {
+      college.type = 'private';
+    } else if (/community college/i.test(section)) {
+      college.type = 'community';
+    }
+    
+    // Extract setting
+    if (/urban|city campus|downtown/i.test(section)) {
+      college.setting = 'urban';
+    } else if (/suburban/i.test(section)) {
+      college.setting = 'suburban';
+    } else if (/rural|small town/i.test(section)) {
+      college.setting = 'rural';
+    }
+    
+    // Extract acceptance rate
+    const acceptanceMatch = section.match(/acceptance rate[:\s]*(\d+(?:\.\d+)?)\s*%/i);
+    if (acceptanceMatch) {
+      college.acceptance_rate = parseFloat(acceptanceMatch[1]) / 100;
+    }
+    
+    // Extract SAT range
+    const satMatch = section.match(/SAT[:\s]*(\d{3,4})\s*[-–]\s*(\d{3,4})/i);
+    if (satMatch) {
+      college.sat_range_low = parseInt(satMatch[1], 10);
+      college.sat_range_high = parseInt(satMatch[2], 10);
+    }
+    
+    // Extract ACT range
+    const actMatch = section.match(/ACT[:\s]*(\d{1,2})\s*[-–]\s*(\d{1,2})/i);
+    if (actMatch) {
+      college.act_range_low = parseInt(actMatch[1], 10);
+      college.act_range_high = parseInt(actMatch[2], 10);
+    }
+    
+    // Extract GPA
+    const gpaMatch = section.match(/(?:average|avg|median)\s+GPA[:\s]*(\d+\.?\d*)/i);
+    if (gpaMatch) {
+      college.avg_gpa = parseFloat(gpaMatch[1]);
+    }
+    
+    // Extract tuition
+    const tuitionMatch = section.match(/(?:in-state|resident)\s*(?:tuition)?[:\s]*\$([0-9,]+)/i);
+    if (tuitionMatch) {
+      college.tuition_in_state = parseInt(tuitionMatch[1].replace(/,/g, ''), 10);
+    }
+    
+    const tuitionOutMatch = section.match(/(?:out-of-state|non-resident)\s*(?:tuition)?[:\s]*\$([0-9,]+)/i);
+    if (tuitionOutMatch) {
+      college.tuition_out_state = parseInt(tuitionOutMatch[1].replace(/,/g, ''), 10);
+    }
+    
+    // Use out-of-state as sticker price if available
+    college.sticker_usd = college.tuition_out_state || college.tuition_in_state;
+    
+    // Extract student population
+    const popMatch = section.match(/(?:enrollment|students?|population)[:\s]*([0-9,]+)/i);
+    if (popMatch) {
+      college.student_population = parseInt(popMatch[1].replace(/,/g, ''), 10);
+    }
+    
+    // Determine size category
+    if (college.student_population) {
+      if (college.student_population < 2000) college.size = 'small';
+      else if (college.student_population < 10000) college.size = 'medium';
+      else if (college.student_population < 25000) college.size = 'large';
+      else college.size = 'very_large';
+    }
+    
+    // Extract graduation rate
+    const gradMatch = section.match(/graduation rate[:\s]*(\d+(?:\.\d+)?)\s*%/i);
+    if (gradMatch) {
+      college.graduation_rate = parseFloat(gradMatch[1]) / 100;
+    }
+    
+    // Extract retention rate
+    const retentionMatch = section.match(/retention rate[:\s]*(\d+(?:\.\d+)?)\s*%/i);
+    if (retentionMatch) {
+      college.retention_rate = parseFloat(retentionMatch[1]) / 100;
+    }
+    
+    // Extract athletics division
+    if (/division\s*i\b|NCAA D1|D1 athletics/i.test(section)) {
+      college.athletics_division = 'D1';
+    } else if (/division\s*ii\b|NCAA D2|D2 athletics/i.test(section)) {
+      college.athletics_division = 'D2';
+    } else if (/division\s*iii\b|NCAA D3|D3 athletics/i.test(section)) {
+      college.athletics_division = 'D3';
+    } else if (/NAIA/i.test(section)) {
+      college.athletics_division = 'NAIA';
+    }
+    
+    // Extract sports
+    const sportsKeywords = ['football', 'basketball', 'soccer', 'baseball', 'softball', 'volleyball', 
+                           'tennis', 'golf', 'swimming', 'track', 'cross country', 'lacrosse', 
+                           'wrestling', 'hockey', 'rowing', 'gymnastics'];
+    const foundSports = sportsKeywords.filter(sport => 
+      new RegExp(`\\b${sport}\\b`, 'i').test(section)
+    );
+    if (foundSports.length > 0) {
+      college.sports = foundSports;
+    }
+    
+    // Extract notable programs/majors
+    const programKeywords = ['engineering', 'computer science', 'business', 'nursing', 'pre-med', 
+                            'biology', 'psychology', 'communications', 'education', 'art', 
+                            'music', 'theater', 'journalism', 'law', 'architecture'];
+    const foundPrograms = programKeywords.filter(prog => 
+      new RegExp(`\\b${prog}\\b`, 'i').test(section)
+    );
+    if (foundPrograms.length > 0) {
+      college.notable_programs = foundPrograms;
+      college.majors = foundPrograms.join(', ');
+    }
+    
+    // Extract religious affiliation
+    const religionMatch = section.match(/(?:affiliated with|founded by|associated with)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:church|denomination|faith)/i);
+    if (religionMatch) {
+      college.religious_affiliation = religionMatch[1];
+    } else if (/catholic|jesuit/i.test(section)) {
+      college.religious_affiliation = 'Catholic';
+    } else if (/baptist/i.test(section)) {
+      college.religious_affiliation = 'Baptist';
+    } else if (/methodist/i.test(section)) {
+      college.religious_affiliation = 'Methodist';
+    } else if (/lutheran/i.test(section)) {
+      college.religious_affiliation = 'Lutheran';
+    }
+    
+    // Extract website
+    const urlMatch = section.match(/https?:\/\/(?:www\.)?([a-z0-9-]+\.edu)/i);
+    if (urlMatch) {
+      college.website_url = urlMatch[0];
+    }
+    
+    colleges.push(college);
+  }
+  
+  return colleges;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Verify auth
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Check admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('profile_extras')
+      .eq('id', user.id)
+      .single();
+    
+    if (!profile?.profile_extras?.admin) {
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const body: IngestRequest = await req.json();
+    const { startUrl, maxPages = 20 } = body;
+    
+    if (!startUrl) {
+      return new Response(
+        JSON.stringify({ error: 'startUrl is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log('Starting college crawl:', startUrl, 'maxPages:', maxPages);
+    
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+    if (!firecrawlApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'Firecrawl not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    let formattedUrl = startUrl.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+    
+    const crawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: formattedUrl,
+        limit: maxPages,
+        scrapeOptions: {
+          formats: ['markdown'],
+        },
+      }),
+    });
+    
+    const crawlData = await crawlResponse.json();
+    console.log('Crawl initiated:', crawlData);
+    
+    if (!crawlResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: crawlData.error || 'Crawl failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Poll for results
+    let crawlResults = crawlData;
+    if (crawlData.id || crawlData.jobId) {
+      const jobId = crawlData.id || crawlData.jobId;
+      console.log('Polling for results, job:', jobId);
+      
+      const maxAttempts = 30;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        const statusResponse = await fetch(`https://api.firecrawl.dev/v1/crawl/${jobId}`, {
+          headers: { 'Authorization': `Bearer ${firecrawlApiKey}` },
+        });
+        
+        const statusData = await statusResponse.json();
+        console.log('Poll attempt', i + 1, 'status:', statusData.status);
+        
+        if (statusData.status === 'completed') {
+          crawlResults = statusData;
+          break;
+        } else if (statusData.status === 'failed') {
+          return new Response(
+            JSON.stringify({ error: 'Crawl failed', details: statusData }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+    
+    // Extract colleges
+    const allColleges: CollegeData[] = [];
+    const pages = crawlResults.data || [];
+    
+    console.log('Processing', pages.length, 'pages');
+    
+    for (const page of pages) {
+      if (page.markdown) {
+        const pageUrl = page.metadata?.sourceURL || page.url || formattedUrl;
+        const extracted = extractColleges(page.markdown, pageUrl);
+        console.log('Extracted', extracted.length, 'colleges from', pageUrl);
+        allColleges.push(...extracted);
+      }
+    }
+    
+    // Upsert colleges
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    
+    for (const college of allColleges) {
+      try {
+        // Check if exists by name
+        const { data: existing } = await supabase
+          .from('colleges')
+          .select('id')
+          .ilike('name', college.name)
+          .maybeSingle();
+        
+        const record = {
+          name: college.name,
+          city: college.city || null,
+          state: college.state || null,
+          region: college.region || null,
+          type: college.type || null,
+          setting: college.setting || null,
+          size: college.size || null,
+          acceptance_rate: college.acceptance_rate || null,
+          sat_range_low: college.sat_range_low || null,
+          sat_range_high: college.sat_range_high || null,
+          act_range_low: college.act_range_low || null,
+          act_range_high: college.act_range_high || null,
+          avg_gpa: college.avg_gpa || null,
+          tuition_in_state: college.tuition_in_state || null,
+          tuition_out_state: college.tuition_out_state || null,
+          sticker_usd: college.sticker_usd || null,
+          avg_financial_aid: college.avg_financial_aid || null,
+          student_population: college.student_population || null,
+          student_faculty_ratio: college.student_faculty_ratio || null,
+          graduation_rate: college.graduation_rate || null,
+          retention_rate: college.retention_rate || null,
+          athletics_division: college.athletics_division || null,
+          sports: college.sports || null,
+          notable_programs: college.notable_programs || null,
+          majors: college.majors || null,
+          religious_affiliation: college.religious_affiliation || null,
+          website_url: college.website_url || null,
+          source_type: 'firecrawl',
+          source_url: formattedUrl,
+          last_crawled_at: new Date().toISOString(),
+        };
+        
+        if (existing) {
+          const { error: updateError } = await supabase
+            .from('colleges')
+            .update(record)
+            .eq('id', existing.id);
+          
+          if (updateError) {
+            errors.push(`Update error for ${college.name}: ${updateError.message}`);
+          } else {
+            updated++;
+          }
+        } else {
+          const { error: insertError } = await supabase
+            .from('colleges')
+            .insert(record);
+          
+          if (insertError) {
+            if (insertError.code === '23505') {
+              skipped++;
+            } else {
+              errors.push(`Insert error for ${college.name}: ${insertError.message}`);
+            }
+          } else {
+            inserted++;
+          }
+        }
+      } catch (e: unknown) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        errors.push(`Error processing ${college.name}: ${errorMsg}`);
+      }
+    }
+    
+    console.log('Ingestion complete:', { inserted, updated, skipped, errors: errors.length });
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        pagesProcessed: pages.length,
+        inserted,
+        updated,
+        skipped,
+        errors,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+    
+  } catch (error: unknown) {
+    console.error('Ingestion error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Internal server error';
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

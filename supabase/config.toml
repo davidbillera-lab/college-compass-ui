@@ -2,3 +2,6 @@ project_id = "oodjzqvfjcrqlrqohyrs"
 
 [functions.firecrawl-ingest]
 verify_jwt = false
+
+[functions.college-ingest]
+verify_jwt = false
