@@ -14,7 +14,7 @@ import {
   ChevronRight,
   Sparkles,
   Search,
-  X,
+  Library,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['student', 'parent', 'counselor'] },
   { href: "/profile", label: "Profile Builder", icon: User, roles: ['student'] },
   { href: "/discovery", label: "Discovery", icon: Search, badge: "New", roles: ['student', 'parent'] },
+  { href: "/college-library", label: "College Library", icon: Library, roles: ['student', 'parent', 'counselor'] },
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
   { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
