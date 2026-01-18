@@ -29,9 +29,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['student', 'parent', 'counselor'] },
   { href: "/profile", label: "Profile Builder", icon: User, roles: ['student'] },
+  { href: "/discovery", label: "Discovery", icon: Search, badge: "New", roles: ['student', 'parent'] },
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
   { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
-  { href: "/scholarships-intel", label: "Scholarships Intel", icon: Search, badge: "New", roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];

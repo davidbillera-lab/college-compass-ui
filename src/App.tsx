@@ -8,6 +8,7 @@ import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import ProfilePage from "./pages/ProfilePage";
 import CollegeMatches from "./pages/CollegeMatches";
+import DiscoveryPage from "./pages/DiscoveryPage";
 import Scholarships from "./pages/Scholarships";
 import Essays from "./pages/Essays";
 import Settings from "./pages/Settings";
@@ -44,6 +45,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/discovery" element={<DiscoveryPage />} />
               <Route path="/colleges" element={<CollegeMatches />} />
               <Route path="/scholarships" element={<Scholarships />} />
               <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
