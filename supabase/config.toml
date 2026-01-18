@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.dev-auto-login]
 verify_jwt = false
+
+[functions.college-scorecard-import]
+verify_jwt = false
