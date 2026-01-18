@@ -1,6 +1,8 @@
 import type { TestScoresData } from "@/components/profile/TestScoresSection";
 import type { VerificationData } from "@/components/profile/VerificationSection";
 import type { VideoShowcaseData } from "@/components/profile/VideoShowcaseSection";
+import type { AthleticAchievementsData } from "@/components/profile/AthleticAchievementsSection";
+import type { AcademicAchievementsData } from "@/components/profile/AcademicAchievementsSection";
 
 export type Activity = {
   name: string;
@@ -29,6 +31,8 @@ export type ProfileExtras = {
   testScores?: TestScoresData;
   verification?: VerificationData;
   videoShowcase?: VideoShowcaseData;
+  athleticAchievements?: AthleticAchievementsData;
+  academicAchievements?: AcademicAchievementsData;
 };
 
 export type ProfileRow = {

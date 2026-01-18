@@ -6,12 +6,14 @@ import PersonalStorySection from "@/components/profile/PersonalStorySection";
 import TestScoresSection from "@/components/profile/TestScoresSection";
 import VerificationSection from "@/components/profile/VerificationSection";
 import VideoShowcaseSection from "@/components/profile/VideoShowcaseSection";
+import AthleticAchievementsSection from "@/components/profile/AthleticAchievementsSection";
+import AcademicAchievementsSection from "@/components/profile/AcademicAchievementsSection";
 import CoreBasicsSection, { type CoreBasicsData } from "@/components/profile/CoreBasicsSection";
 import { ensureProfileRow, normalizeExtras, saveProfileExtras } from "@/lib/profileExtrasApi";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BookOpen, Calculator, ShieldCheck, Video, Activity } from "lucide-react";
+import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
@@ -155,28 +157,41 @@ export default function ProfilePage() {
       <ProfileSnapshotCard profile={profile} />
 
       <Tabs defaultValue="basics" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="basics" className="flex items-center gap-1 text-xs sm:text-sm">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
+          <TabsTrigger value="basics" className="flex items-center gap-1 text-xs">
             <User className="h-4 w-4 hidden sm:inline" />
-            Basics
+            <span className="hidden md:inline">Basics</span>
+            <span className="md:hidden">Core</span>
           </TabsTrigger>
-          <TabsTrigger value="story" className="flex items-center gap-1 text-xs sm:text-sm">
+          <TabsTrigger value="story" className="flex items-center gap-1 text-xs">
             <BookOpen className="h-4 w-4 hidden sm:inline" />
             Story
           </TabsTrigger>
-          <TabsTrigger value="activities" className="flex items-center gap-1 text-xs sm:text-sm">
+          <TabsTrigger value="activities" className="flex items-center gap-1 text-xs">
             <Activity className="h-4 w-4 hidden sm:inline" />
-            Activities
+            <span className="hidden md:inline">Activities</span>
+            <span className="md:hidden">Acts</span>
           </TabsTrigger>
-          <TabsTrigger value="tests" className="flex items-center gap-1 text-xs sm:text-sm">
+          <TabsTrigger value="tests" className="flex items-center gap-1 text-xs">
             <Calculator className="h-4 w-4 hidden sm:inline" />
             Tests
           </TabsTrigger>
-          <TabsTrigger value="videos" className="flex items-center gap-1 text-xs sm:text-sm">
-            <Video className="h-4 w-4 hidden sm:inline" />
-            Videos
+          <TabsTrigger value="athletics" className="flex items-center gap-1 text-xs">
+            <Dumbbell className="h-4 w-4 hidden sm:inline" />
+            <span className="hidden md:inline">Athletics</span>
+            <span className="md:hidden">Ath</span>
           </TabsTrigger>
-          <TabsTrigger value="verification" className="flex items-center gap-1 text-xs sm:text-sm">
+          <TabsTrigger value="academics" className="flex items-center gap-1 text-xs">
+            <GraduationCap className="h-4 w-4 hidden sm:inline" />
+            <span className="hidden md:inline">Academics</span>
+            <span className="md:hidden">Acad</span>
+          </TabsTrigger>
+          <TabsTrigger value="videos" className="flex items-center gap-1 text-xs">
+            <Video className="h-4 w-4 hidden sm:inline" />
+            <span className="hidden md:inline">Videos</span>
+            <span className="md:hidden">Vid</span>
+          </TabsTrigger>
+          <TabsTrigger value="verification" className="flex items-center gap-1 text-xs">
             <ShieldCheck className="h-4 w-4 hidden sm:inline" />
             Docs
           </TabsTrigger>
@@ -209,6 +224,22 @@ export default function ProfilePage() {
           <TestScoresSection
             data={extras.testScores || {}}
             onChange={(testScores) => setExtras({ ...extras, testScores })}
+            onSave={save}
+          />
+        </TabsContent>
+
+        <TabsContent value="athletics" className="mt-6">
+          <AthleticAchievementsSection
+            data={extras.athleticAchievements || {}}
+            onChange={(athleticAchievements) => setExtras({ ...extras, athleticAchievements })}
+            onSave={save}
+          />
+        </TabsContent>
+
+        <TabsContent value="academics" className="mt-6">
+          <AcademicAchievementsSection
+            data={extras.academicAchievements || {}}
+            onChange={(academicAchievements) => setExtras({ ...extras, academicAchievements })}
             onSave={save}
           />
         </TabsContent>
