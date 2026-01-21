@@ -164,10 +164,21 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   return data as Profile;
 }
 
-// Check if user is admin
+// Check if user is admin using secure user_roles table
 export async function isUserAdmin(userId: string): Promise<boolean> {
-  const profile = await fetchProfile(userId);
-  return profile?.profile_extras?.admin === true;
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'admin')
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+  
+  return data !== null;
 }
 
 // Add scholarship to pipeline
