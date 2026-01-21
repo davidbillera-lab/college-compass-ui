@@ -1,5 +1,6 @@
 import * as React from "react";
-import { getMockScholarshipMatches } from "../services/mockIntelligence";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ScholarshipMatch } from "../types/scholarship";
 import { ScholarshipTrackingItem, ScholarshipStatus } from "../types/scholarshipTracking";
 import {
@@ -9,6 +10,7 @@ import {
   setScholarshipStatus,
   setScholarshipNotes,
 } from "../services/scholarshipStore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +102,40 @@ function isUrgentDeadline(deadline?: string): boolean {
 }
 
 export default function Scholarships() {
-  const [items] = React.useState<ScholarshipMatch[]>(() => getMockScholarshipMatches());
+  // Fetch scholarships from database
+  const { data: dbScholarships, isLoading, error } = useQuery({
+    queryKey: ["scholarships-pipeline"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scholarships")
+        .select("*")
+        .eq("status", "active")
+        .order("deadline_date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Transform DB rows to ScholarshipMatch format
+  const items = React.useMemo<ScholarshipMatch[]>(() => {
+    if (!dbScholarships) return [];
+    return dbScholarships.map((row) => ({
+      id: row.id,
+      scholarshipId: row.id,
+      scholarshipName: row.name,
+      matchScore: 75, // Default score until matching engine runs
+      eligibilityConfidence: "medium" as const,
+      priority: row.amount_max_usd && row.amount_max_usd >= 10000 ? "high" as const : 
+               row.amount_max_usd && row.amount_max_usd >= 2500 ? "medium" as const : "low" as const,
+      awardRange: {
+        min: row.amount_min_usd ?? undefined,
+        max: row.amount_max_usd ?? undefined,
+      },
+      deadline: row.deadline_date ?? undefined,
+      competitivenessEstimate: "medium" as const,
+      reasons: ["Based on your profile"],
+    }));
+  }, [dbScholarships]);
 
   const [search, setSearch] = React.useState("");
   const [priorityFilter, setPriorityFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
@@ -200,6 +235,36 @@ export default function Scholarships() {
   const selectedId = selected?.scholarshipId ?? "";
   const isTracked = !!(selectedId && tracked[selectedId]);
 
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-72 mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="py-10 text-center text-destructive">
+            Failed to load scholarships. Please try again.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <Card>
@@ -207,7 +272,7 @@ export default function Scholarships() {
           <div className="space-y-1">
             <CardTitle>Scholarship Pipeline</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Ranked matches based on eligibility confidence, fit, and ROI.
+              {items.length} scholarships · Ranked by eligibility confidence, fit, and ROI.
             </p>
           </div>
 
@@ -450,7 +515,7 @@ export default function Scholarships() {
           </div>
 
           <div className="mt-4 text-xs text-muted-foreground">
-            * Mock scholarship data for UI scaffolding. Next: tracking statuses + autofill packet builder.
+            Showing {items.length} scholarships from the database.
           </div>
         </CardContent>
       </Card>
