@@ -23,6 +23,16 @@ export type ScholarshipDirectoryFilters = {
   scope: "any" | "national" | "state" | "local";
   status: "active" | "archived" | "all";
   sort: "deadline" | "amount" | "name";
+  page: number;
+  pageSize: number;
+};
+
+export type ScholarshipDirectoryResult = {
+  data: ScholarshipDirectoryRow[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 function yyyyMMdd(d: Date) {
@@ -32,11 +42,16 @@ function yyyyMMdd(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
-export async function fetchScholarshipDirectory(filters: ScholarshipDirectoryFilters) {
+export async function fetchScholarshipDirectory(filters: ScholarshipDirectoryFilters): Promise<ScholarshipDirectoryResult> {
+  const { page, pageSize } = filters;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   let q = supabase
     .from("scholarships")
     .select(
-      "id,name,provider,url,amount_min_usd,amount_max_usd,deadline_date,rolling_deadline,location_scope,major_tags,career_tags,raw_eligibility_text,status"
+      "id,name,provider,url,amount_min_usd,amount_max_usd,deadline_date,rolling_deadline,location_scope,major_tags,career_tags,raw_eligibility_text,status",
+      { count: "exact" }
     );
 
   // Status
@@ -85,9 +100,20 @@ export async function fetchScholarshipDirectory(filters: ScholarshipDirectoryFil
     q = q.order("deadline_date", { ascending: true, nullsFirst: false });
   }
 
-  const { data, error } = await q;
+  // Pagination
+  q = q.range(from, to);
+
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data ?? []) as ScholarshipDirectoryRow[];
+
+  const totalCount = count ?? 0;
+  return {
+    data: (data ?? []) as ScholarshipDirectoryRow[],
+    totalCount,
+    page,
+    pageSize,
+    totalPages: Math.ceil(totalCount / pageSize),
+  };
 }
 
 export async function addScholarshipToPipeline(scholarshipId: string) {

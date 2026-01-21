@@ -25,8 +25,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, DollarSign, Calendar, MapPin, ExternalLink, Plus, Loader2 } from "lucide-react";
+import { Search, DollarSign, Calendar, MapPin, ExternalLink, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+
+const PAGE_SIZE = 12;
 
 function formatMoney(min?: number | null, max?: number | null) {
   const fmt = (n: number) => `$${n.toLocaleString()}`;
@@ -60,6 +62,8 @@ export default function ScholarshipDirectoryPage() {
     scope: "any",
     status: "active",
     sort: "deadline",
+    page: 1,
+    pageSize: PAGE_SIZE,
   });
 
   const queryKey = useMemo(() => ["scholarship-directory", filters], [filters]);
@@ -83,11 +87,19 @@ export default function ScholarshipDirectoryPage() {
   const [selected, setSelected] = useState<ScholarshipDirectoryRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const rows = data ?? [];
+  const rows = data?.data ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = filters.page;
 
   const openDetail = (s: ScholarshipDirectoryRow) => {
     setSelected(s);
     setDrawerOpen(true);
+  };
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setFilters((f) => ({ ...f, page }));
   };
 
   return (
@@ -107,14 +119,14 @@ export default function ScholarshipDirectoryPage() {
           <Input
             placeholder="Search name, provider, major..."
             value={filters.q}
-            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value, page: 1 }))}
             className="pl-9"
           />
         </div>
 
         <Select
           value={filters.deadline}
-          onValueChange={(v) => setFilters((f) => ({ ...f, deadline: v as ScholarshipDirectoryFilters["deadline"] }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, deadline: v as ScholarshipDirectoryFilters["deadline"], page: 1 }))}
         >
           <SelectTrigger>
             <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -130,7 +142,7 @@ export default function ScholarshipDirectoryPage() {
 
         <Select
           value={filters.minAmount}
-          onValueChange={(v) => setFilters((f) => ({ ...f, minAmount: v as ScholarshipDirectoryFilters["minAmount"] }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, minAmount: v as ScholarshipDirectoryFilters["minAmount"], page: 1 }))}
         >
           <SelectTrigger>
             <DollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -147,7 +159,7 @@ export default function ScholarshipDirectoryPage() {
 
         <Select
           value={filters.scope}
-          onValueChange={(v) => setFilters((f) => ({ ...f, scope: v as ScholarshipDirectoryFilters["scope"] }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, scope: v as ScholarshipDirectoryFilters["scope"], page: 1 }))}
         >
           <SelectTrigger>
             <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -163,7 +175,7 @@ export default function ScholarshipDirectoryPage() {
 
         <Select
           value={filters.sort}
-          onValueChange={(v) => setFilters((f) => ({ ...f, sort: v as ScholarshipDirectoryFilters["sort"] }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, sort: v as ScholarshipDirectoryFilters["sort"], page: 1 }))}
         >
           <SelectTrigger>
             <SelectValue placeholder="Sort" />
@@ -179,11 +191,11 @@ export default function ScholarshipDirectoryPage() {
       {/* Results count */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          {isLoading ? "Loading…" : `${rows.length.toLocaleString()} scholarships`}
+          {isLoading ? "Loading…" : `${totalCount.toLocaleString()} scholarships`}
         </span>
         <Select
           value={filters.status}
-          onValueChange={(v) => setFilters((f) => ({ ...f, status: v as ScholarshipDirectoryFilters["status"] }))}
+          onValueChange={(v) => setFilters((f) => ({ ...f, status: v as ScholarshipDirectoryFilters["status"], page: 1 }))}
         >
           <SelectTrigger className="w-32">
             <SelectValue />
@@ -220,84 +232,129 @@ export default function ScholarshipDirectoryPage() {
 
       {/* Grid */}
       {!isLoading && rows.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {rows.map((s) => (
-            <Card
-              key={s.id}
-              className="flex flex-col cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => openDetail(s)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base leading-tight line-clamp-2">
-                    {s.name}
-                  </CardTitle>
-                  <DeadlineBadge rolling={s.rolling_deadline} deadline={s.deadline_date} />
-                </div>
-                <CardDescription className="line-clamp-1">
-                  {s.provider || "Provider unknown"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatMoney(s.amount_min_usd, s.amount_max_usd)}</span>
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {rows.map((s) => (
+              <Card
+                key={s.id}
+                className="flex flex-col cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => openDetail(s)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base leading-tight line-clamp-2">
+                      {s.name}
+                    </CardTitle>
+                    <DeadlineBadge rolling={s.rolling_deadline} deadline={s.deadline_date} />
                   </div>
-                  {s.location_scope && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="truncate max-w-[120px]">{s.location_scope}</span>
+                  <CardDescription className="line-clamp-1">
+                    {s.provider || "Provider unknown"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{formatMoney(s.amount_min_usd, s.amount_max_usd)}</span>
+                    </div>
+                    {s.location_scope && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span className="truncate max-w-[120px]">{s.location_scope}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(s.major_tags || s.career_tags) && (
+                    <div className="flex flex-wrap gap-1">
+                      {s.major_tags?.split(",").slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag.trim()}
+                        </Badge>
+                      ))}
                     </div>
                   )}
-                </div>
 
-                {(s.major_tags || s.career_tags) && (
-                  <div className="flex flex-wrap gap-1">
-                    {s.major_tags?.split(",").slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag.trim()}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addMut.mutate(s.id);
-                    }}
-                    disabled={addMut.isPending}
-                  >
-                    {addMut.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add to Pipeline
-                      </>
-                    )}
-                  </Button>
-                  {s.url && (
+                  <div className="flex gap-2 pt-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      asChild
-                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addMut.mutate(s.id);
+                      }}
+                      disabled={addMut.isPending}
                     >
-                      <a href={s.url} target="_blank" rel="noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                      {addMut.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add to Pipeline
+                        </>
+                      )}
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {s.url && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <a href={s.url} target="_blank" rel="noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span>Page</span>
+                <Select
+                  value={String(currentPage)}
+                  onValueChange={(v) => goToPage(Number(v))}
+                >
+                  <SelectTrigger className="w-16 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <SelectItem key={p} value={String(p)}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span>of {totalPages}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       <DirectoryDetailDrawer
