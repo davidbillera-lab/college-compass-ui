@@ -180,23 +180,24 @@ Deno.serve(async (req) => {
     
     console.log('User authenticated:', user.id);
     
-    // Check if user is admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('profile_extras')
-      .eq('id', user.id)
-      .single();
+    // Check if user is admin using secure user_roles table
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
     
-    if (profileError) {
-      console.log('Profile error:', profileError);
+    if (roleError) {
+      console.log('Role check error:', roleError);
       return new Response(
         JSON.stringify({ error: 'Could not verify admin status' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    const isAdmin = profile?.profile_extras?.admin === true;
-    console.log('Is admin:', isAdmin, 'Profile extras:', profile?.profile_extras);
+    const isAdmin = roleData !== null;
+    console.log('Is admin:', isAdmin);
     
     if (!isAdmin) {
       return new Response(
