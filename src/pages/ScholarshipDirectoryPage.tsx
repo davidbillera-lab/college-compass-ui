@@ -6,6 +6,7 @@ import {
   type ScholarshipDirectoryFilters,
   type ScholarshipDirectoryRow,
 } from "@/lib/scholarships/directoryApi";
+import DirectoryDetailDrawer from "@/components/scholarships/DirectoryDetailDrawer";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -79,7 +80,15 @@ export default function ScholarshipDirectoryPage() {
     },
   });
 
+  const [selected, setSelected] = useState<ScholarshipDirectoryRow | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const rows = data ?? [];
+
+  const openDetail = (s: ScholarshipDirectoryRow) => {
+    setSelected(s);
+    setDrawerOpen(true);
+  };
 
   return (
     <main className="p-6 space-y-6">
@@ -213,7 +222,11 @@ export default function ScholarshipDirectoryPage() {
       {!isLoading && rows.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {rows.map((s) => (
-            <Card key={s.id} className="flex flex-col">
+            <Card
+              key={s.id}
+              className="flex flex-col cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => openDetail(s)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base leading-tight line-clamp-2">
@@ -253,7 +266,10 @@ export default function ScholarshipDirectoryPage() {
                   <Button
                     size="sm"
                     className="flex-1"
-                    onClick={() => addMut.mutate(s.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addMut.mutate(s.id);
+                    }}
                     disabled={addMut.isPending}
                   >
                     {addMut.isPending ? (
@@ -266,7 +282,12 @@ export default function ScholarshipDirectoryPage() {
                     )}
                   </Button>
                   {s.url && (
-                    <Button size="sm" variant="outline" asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <a href={s.url} target="_blank" rel="noreferrer">
                         <ExternalLink className="h-4 w-4" />
                       </a>
@@ -278,6 +299,14 @@ export default function ScholarshipDirectoryPage() {
           ))}
         </div>
       )}
+
+      <DirectoryDetailDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        scholarship={selected}
+        onAddToPipeline={(id) => addMut.mutate(id)}
+        isAdding={addMut.isPending}
+      />
     </main>
   );
 }
