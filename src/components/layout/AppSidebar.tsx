@@ -15,7 +15,7 @@ import {
   Sparkles,
   Search,
   Library,
-  BookOpen,
+  
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -34,7 +34,6 @@ const navItems: NavItem[] = [
   { href: "/college-library", label: "College Library", icon: Library, roles: ['student', 'parent', 'counselor'] },
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
   { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
-  { href: "/scholarship-directory", label: "Scholarship Directory", icon: BookOpen, roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];

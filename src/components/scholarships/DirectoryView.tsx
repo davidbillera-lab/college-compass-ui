@@ -52,7 +52,7 @@ function DeadlineBadge({ rolling, deadline }: { rolling: boolean | null; deadlin
   return <Badge variant="outline">No deadline</Badge>;
 }
 
-export default function ScholarshipDirectoryPage() {
+export default function DirectoryView() {
   const qc = useQueryClient();
 
   const [filters, setFilters] = useState<ScholarshipDirectoryFilters>({
@@ -103,15 +103,7 @@ export default function ScholarshipDirectoryPage() {
   };
 
   return (
-    <main className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Scholarship Directory</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse all scholarships and add matches to your pipeline.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {/* Filters */}
       <div className="grid gap-3 md:grid-cols-6">
         <div className="relative md:col-span-2">
@@ -364,6 +356,6 @@ export default function ScholarshipDirectoryPage() {
         onAddToPipeline={(id) => addMut.mutate(id)}
         isAdding={addMut.isPending}
       />
-    </main>
+    </div>
   );
 }
