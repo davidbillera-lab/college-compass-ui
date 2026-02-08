@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollegeLibraryDrawer } from "@/components/CollegeLibraryDrawer";
@@ -36,6 +37,8 @@ export default function CollegeLibraryPage() {
   const [typeFilter, setTypeFilter] = useState("All");
   const [sizeFilter, setSizeFilter] = useState("All");
   const [stateFilter, setStateFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("name");
+  const [likelyAdmitsOnly, setLikelyAdmitsOnly] = useState(false);
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -55,9 +58,9 @@ export default function CollegeLibraryPage() {
     return ["All", ...Array.from(states).sort()];
   }, [colleges]);
 
-  // Filter colleges
+  // Filter and sort colleges
   const filteredColleges = useMemo(() => {
-    return colleges.filter((college) => {
+    let result = colleges.filter((college) => {
       const matchesSearch =
         search === "" ||
         college.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -68,10 +71,26 @@ export default function CollegeLibraryPage() {
       const matchesType = typeFilter === "All" || college.type === typeFilter;
       const matchesSize = sizeFilter === "All" || college.size === sizeFilter;
       const matchesState = stateFilter === "All" || college.state === stateFilter;
+      
+      // Filter by likely admits (AI score > 50%)
+      const matchesLikelyAdmits = !likelyAdmitsOnly || (getScore(college.id)?.overall_score ?? 0) > 50;
 
-      return matchesSearch && matchesRegion && matchesType && matchesSize && matchesState;
+      return matchesSearch && matchesRegion && matchesType && matchesSize && matchesState && matchesLikelyAdmits;
     });
-  }, [colleges, search, regionFilter, typeFilter, sizeFilter, stateFilter]);
+
+    // Sort colleges
+    if (sortBy === "score") {
+      result = result.sort((a, b) => {
+        const scoreA = getScore(a.id)?.overall_score ?? 0;
+        const scoreB = getScore(b.id)?.overall_score ?? 0;
+        return scoreB - scoreA; // Highest score first
+      });
+    } else if (sortBy === "name") {
+      result = result.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return result;
+  }, [colleges, search, regionFilter, typeFilter, sizeFilter, stateFilter, likelyAdmitsOnly, sortBy, scores]);
 
   // Stats
   const stats = useMemo(() => {
@@ -244,6 +263,16 @@ export default function CollegeLibraryPage() {
                 </SelectContent>
               </Select>
 
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name (A–Z)</SelectItem>
+                  <SelectItem value="score">AI Odds (Highest)</SelectItem>
+                </SelectContent>
+              </Select>
+
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
                   Clear all
@@ -251,7 +280,17 @@ export default function CollegeLibraryPage() {
               )}
             </div>
 
-            {/* Results count and AI scoring */}
+            {/* Likely admits filter */}
+            <div className="flex items-center gap-3 px-1">
+              <Switch
+                id="likely-admits"
+                checked={likelyAdmitsOnly}
+                onCheckedChange={setLikelyAdmitsOnly}
+              />
+              <label htmlFor="likely-admits" className="text-sm text-muted-foreground cursor-pointer">
+                Show only likely admits (score &gt; 50%)
+              </label>
+            </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className="text-sm text-muted-foreground">
