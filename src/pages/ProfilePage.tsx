@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { ProfileExtras, ProfileRow } from "@/lib/profileUtils";
 import ProfileSnapshotCard from "@/components/profile/ProfileSnapshotCard";
+import ProfileCompletionWizard from "@/components/profile/ProfileCompletionWizard";
+import ScholarshipOpportunityBanner from "@/components/profile/ScholarshipOpportunityBanner";
 import ActivitiesEditor from "@/components/profile/ActivitiesEditor";
 import PersonalStorySection from "@/components/profile/PersonalStorySection";
 import TestScoresSection from "@/components/profile/TestScoresSection";
@@ -13,16 +16,24 @@ import { ensureProfileRow, normalizeExtras, saveProfileExtras } from "@/lib/prof
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap } from "lucide-react";
+import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showWizard = searchParams.get("wizard") === "true";
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [extras, setExtras] = useState<ProfileExtras>({});
   const [coreData, setCoreData] = useState<CoreBasicsData>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const closeWizard = () => {
+    searchParams.delete("wizard");
+    setSearchParams(searchParams);
+    load(); // Reload profile after wizard closes
+  };
 
   async function load() {
     setErr(null);
@@ -145,14 +156,51 @@ export default function ProfilePage() {
     );
   }
 
+  // Show wizard mode
+  if (showWizard) {
+    return (
+      <div className="space-y-6 p-6 max-w-2xl mx-auto animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-8 w-8 text-primary" />
+              Boost Your Profile
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Complete key fields to unlock more scholarship opportunities
+            </p>
+          </div>
+          <Button variant="outline" onClick={closeWizard}>
+            Exit Wizard
+          </Button>
+        </div>
+        <ProfileCompletionWizard 
+          onComplete={closeWizard}
+          onFieldUpdate={() => {}}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">My Profile</h1>
-        <Button onClick={save} disabled={saving} size="lg">
-          {saving ? "Saving…" : "Save All Changes"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setSearchParams({ wizard: "true" })}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Boost Profile
+          </Button>
+          <Button onClick={save} disabled={saving} size="lg">
+            {saving ? "Saving…" : "Save All Changes"}
+          </Button>
+        </div>
       </div>
+
+      <ScholarshipOpportunityBanner compact />
 
       <ProfileSnapshotCard profile={profile} />
 
