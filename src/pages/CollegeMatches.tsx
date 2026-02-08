@@ -359,6 +359,18 @@ export default function CollegeMatches() {
           </CardHeader>
 
           <CardContent>
+            {/* Filter count badge */}
+            <div className="mb-4 flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm">
+                Showing <span className="font-semibold mx-1">{sorted.length}</span> of <span className="font-semibold mx-1">{items.length}</span> colleges
+              </Badge>
+              {sorted.length < items.length && (
+                <span className="text-xs text-muted-foreground">
+                  ({items.length - sorted.length} filtered out)
+                </span>
+              )}
+            </div>
+
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
