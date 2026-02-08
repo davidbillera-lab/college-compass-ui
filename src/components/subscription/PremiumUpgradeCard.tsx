@@ -54,9 +54,14 @@ export function PremiumUpgradeCard() {
             <Sparkles className="h-5 w-5 text-primary" />
             {PREMIUM_TIER.name}
           </CardTitle>
-          <Badge variant="secondary" className="text-lg font-bold">
-            ${PREMIUM_TIER.price}/mo
-          </Badge>
+          <div className="text-right">
+            <Badge variant="secondary" className="text-lg font-bold">
+              ${PREMIUM_TIER.monthly_price}/mo
+            </Badge>
+            <p className="text-xs text-muted-foreground mt-1">
+              + ${PREMIUM_TIER.onboarding_fee} one-time setup
+            </p>
+          </div>
         </div>
         <CardDescription>
           Unlock powerful AI features to supercharge your college application journey
@@ -78,13 +83,20 @@ export function PremiumUpgradeCard() {
           </li>
           <li className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-primary" />
-            Unlimited Match Score Calculations
+            AI Application Advisor
+          </li>
+          <li className="flex items-center gap-2 text-sm">
+            <Check className="h-4 w-4 text-primary" />
+            Personalized College Matching
           </li>
         </ul>
         <Button onClick={openCheckout} className="w-full" size="lg">
           <Crown className="mr-2 h-4 w-4" />
-          Upgrade to Premium
+          Get Started - ${PREMIUM_TIER.onboarding_fee + PREMIUM_TIER.monthly_price} today
         </Button>
+        <p className="text-xs text-center text-muted-foreground">
+          Then ${PREMIUM_TIER.monthly_price}/month. Cancel anytime.
+        </p>
       </CardContent>
     </Card>
   );

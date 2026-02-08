@@ -8,7 +8,8 @@ export const PREMIUM_TIER = {
   price_id: "price_1SySFGHqg2vAFif7Tr7U09V8",
   product_id: "prod_TwKv99TtmRbLfO",
   name: "CampusClimb Premium",
-  price: 19.99,
+  monthly_price: 19.99,
+  onboarding_fee: 199,
 };
 
 interface SubscriptionContextType {
