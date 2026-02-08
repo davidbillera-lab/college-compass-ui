@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatCard } from "@/components/ui/stat-card";
+import { PremiumUpgradeCard } from "@/components/subscription/PremiumUpgradeCard";
 import { 
   mockColleges, 
   mockScholarships, 
@@ -129,6 +130,11 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Premium Upgrade Card */}
+        <div className="lg:col-span-1">
+          <PremiumUpgradeCard />
+        </div>
+
         {/* Next Best Actions */}
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -157,7 +163,7 @@ export default function Dashboard() {
         </Card>
 
         {/* College Fit Snapshot */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">

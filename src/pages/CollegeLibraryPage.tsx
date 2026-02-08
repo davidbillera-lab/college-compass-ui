@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollegeLibraryDrawer } from "@/components/CollegeLibraryDrawer";
 import { AIMatchScoreBadge } from "@/components/scholarships/AIMatchScoreBadge";
 import { useAIMatchScores } from "@/hooks/useAIMatchScores";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { toast } from "sonner";
 import {
   Search,
   MapPin,
@@ -25,6 +27,7 @@ import {
   Loader2,
   ExternalLink,
   Sparkles,
+  Crown,
 } from "lucide-react";
 
 const US_REGIONS = ["All", "Northeast", "Southeast", "Midwest", "Southwest", "West"];
@@ -43,6 +46,7 @@ export default function CollegeLibraryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { scores, loading: aiLoading, calculateCollegeScores, getScore } = useAIMatchScores();
+  const { isPremium, openCheckout, loading: subscriptionLoading } = useSubscription();
 
   const { data: colleges = [], isLoading } = useQuery({
     queryKey: ["colleges-library"],
@@ -121,11 +125,34 @@ export default function CollegeLibraryPage() {
     setStateFilter("All");
   };
 
-  // Function to calculate AI scores for visible colleges
+  // Function to calculate AI scores for visible colleges (premium only)
   const calculateVisibleScores = () => {
+    if (!isPremium) {
+      toast.info("AI Admission Odds is a Premium feature", {
+        action: {
+          label: "Upgrade",
+          onClick: openCheckout,
+        },
+      });
+      return;
+    }
     if (filteredColleges.length === 0) return;
     const ids = filteredColleges.map((c) => c.id);
     calculateCollegeScores(ids);
+  };
+
+  // Handle individual college score calculation (premium only)
+  const handleCalculateScore = (collegeId: string) => {
+    if (!isPremium) {
+      toast.info("AI Admission Odds is a Premium feature", {
+        action: {
+          label: "Upgrade",
+          onClick: openCheckout,
+        },
+      });
+      return;
+    }
+    calculateCollegeScores([collegeId]);
   };
 
   const hasActiveFilters =
@@ -298,7 +325,7 @@ export default function CollegeLibraryPage() {
                 </span>
                 {!isLoading && filteredColleges.length > 0 && (
                   <Button
-                    variant="outline"
+                    variant={isPremium ? "outline" : "default"}
                     size="sm"
                     onClick={calculateVisibleScores}
                     disabled={aiLoading}
@@ -306,10 +333,12 @@ export default function CollegeLibraryPage() {
                   >
                     {aiLoading ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
+                    ) : isPremium ? (
                       <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Crown className="h-3.5 w-3.5" />
                     )}
-                    {aiLoading ? "Calculating..." : "Get AI Admission Odds"}
+                    {aiLoading ? "Calculating..." : isPremium ? "Get AI Admission Odds" : "Upgrade for AI Odds"}
                   </Button>
                 )}
               </div>
@@ -369,13 +398,14 @@ export default function CollegeLibraryPage() {
                   </div>
                 </div>
 
-                {/* AI Match Score */}
+                {/* AI Match Score - Premium feature */}
                 <div onClick={(e) => e.stopPropagation()}>
                   <AIMatchScoreBadge
-                    score={getScore(college.id)}
+                    score={isPremium ? getScore(college.id) : undefined}
                     loading={aiLoading}
-                    onCalculate={() => calculateCollegeScores([college.id])}
+                    onCalculate={() => handleCalculateScore(college.id)}
                     compact
+                    locked={!isPremium}
                   />
                 </div>
 

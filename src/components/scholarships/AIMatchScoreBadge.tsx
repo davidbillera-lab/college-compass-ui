@@ -6,7 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Sparkles, Info, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Info, Loader2, AlertCircle, Crown, Lock } from 'lucide-react';
 import { AIMatchScoreResult } from '@/lib/scholarshipsIntel/api';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ interface AIMatchScoreBadgeProps {
   onCalculate?: () => void;
   compact?: boolean;
   className?: string;
+  locked?: boolean;
 }
 
 function getScoreColor(score: number): string {
@@ -44,6 +45,7 @@ export function AIMatchScoreBadge({
   onCalculate,
   compact = false,
   className,
+  locked = false,
 }: AIMatchScoreBadgeProps) {
   if (loading) {
     return (
@@ -51,6 +53,21 @@ export function AIMatchScoreBadge({
         <Loader2 className="h-3 w-3 animate-spin" />
         <span className="text-xs">Calculating...</span>
       </Badge>
+    );
+  }
+
+  // Show locked state for non-premium users
+  if (locked && !score) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onCalculate}
+        className={cn("gap-1 h-7 border-dashed", className)}
+      >
+        <Crown className="h-3 w-3 text-primary" />
+        <span className="text-xs">Premium AI Score</span>
+      </Button>
     );
   }
 

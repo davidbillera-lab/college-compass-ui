@@ -22,6 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { FileText, Plus, Clock, Tag, Pencil, Trash2 } from "lucide-react";
 import { mockEssays } from "@/lib/mockData";
+import { EssayCoach } from "@/components/subscription/EssayCoach";
 
 type EssayStatus = "draft" | "in-progress" | "complete";
 type EssayType = "personal_statement" | "scholarship" | "short_answer" | "supplemental";
@@ -197,6 +198,14 @@ export default function Essays() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Essay Coach - Premium Feature */}
+        <div className="lg:col-span-3 xl:col-span-1">
+          <EssayCoach />
+        </div>
+        
+        {/* Essay List */}
+        <div className="lg:col-span-3 xl:col-span-2">
+          <div className="grid lg:grid-cols-3 gap-6">
         {/* Essay List */}
         <div className="lg:col-span-1 space-y-3">
           <h3 className="font-semibold text-foreground">Your Essays ({essays.length})</h3>
@@ -322,6 +331,8 @@ export default function Essays() {
               </div>
             </Card>
           )}
+        </div>
+          </div>
         </div>
       </div>
     </div>
