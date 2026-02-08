@@ -79,8 +79,8 @@ const testimonials = [
 const stats = [
   { value: "545+", label: "Active Scholarships" },
   { value: "3,237", label: "Verified Colleges" },
-  { value: "$19.99", label: "Per Month" },
-  { value: "100%", label: "No Spam" },
+  { value: "$199 + $19.99/mo", label: "Full Transparency" },
+  { value: "0", label: "Hidden Fees" },
 ];
 
 const comparisonData = [
@@ -90,7 +90,7 @@ const comparisonData = [
   { feature: "Scholarship Database", fastweb: "Outdated", collegevine: "Small", ours: "✓ 545+ active" },
   { feature: "Application Tracking", fastweb: "❌ No", collegevine: "❌ No", ours: "✓ Full pipeline" },
   { feature: "Parent Dashboard", fastweb: "❌ No", collegevine: "❌ No", ours: "✓ Yes" },
-  { feature: "Monthly Price", fastweb: "Free*", collegevine: "$200-300", ours: "✓ $19.99" },
+  { feature: "Total Cost", fastweb: "Free*", collegevine: "$200-300/essay", ours: "✓ $199 + $19.99/mo" },
 ];
 
 export default function LandingPage() {
@@ -342,10 +342,22 @@ export default function LandingPage() {
             </p>
             
             <div className="bg-white rounded-lg p-8 mb-8 border border-border">
-              <div className="text-4xl font-bold text-primary mb-2">
-                $19.99<span className="text-lg text-muted-foreground">/month</span>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mb-4">
+                <div className="text-center">
+                  <div className="text-3xl sm:text-4xl font-bold text-primary">
+                    $199
+                  </div>
+                  <p className="text-sm text-muted-foreground">one-time onboarding</p>
+                </div>
+                <div className="text-2xl text-muted-foreground font-light hidden sm:block">+</div>
+                <div className="text-center">
+                  <div className="text-3xl sm:text-4xl font-bold text-primary">
+                    $19.99<span className="text-lg text-muted-foreground">/mo</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">monthly subscription</p>
+                </div>
               </div>
-              <p className="text-muted-foreground mb-6">Everything included. Cancel anytime.</p>
+              <p className="text-muted-foreground mb-6">Full transparency. No hidden fees. Cancel anytime.</p>
               
               <ul className="text-left max-w-sm mx-auto space-y-3 mb-8 text-foreground">
                 <li className="flex items-center gap-3">
