@@ -6,6 +6,7 @@ export interface CollegeList {
   name: string;
   description: string | null;
   color: string | null;
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -152,4 +153,57 @@ export async function getCollegeListMembership(collegeId: string): Promise<strin
 
   if (error) throw error;
   return (data || []).map((item) => item.list_id);
+}
+
+// Generate a share token for a list
+export async function generateShareToken(listId: string): Promise<string> {
+  const token = crypto.randomUUID();
+  const { error } = await supabase
+    .from("college_lists")
+    .update({ share_token: token })
+    .eq("id", listId);
+
+  if (error) throw error;
+  return token;
+}
+
+// Revoke share token (make list private again)
+export async function revokeShareToken(listId: string): Promise<void> {
+  const { error } = await supabase
+    .from("college_lists")
+    .update({ share_token: null })
+    .eq("id", listId);
+
+  if (error) throw error;
+}
+
+// Fetch a shared list by its share token (public access)
+export async function fetchSharedList(shareToken: string): Promise<CollegeList | null> {
+  const { data, error } = await supabase
+    .from("college_lists")
+    .select("*")
+    .eq("share_token", shareToken)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    throw error;
+  }
+  return data;
+}
+
+// Fetch items in a shared list (public access)
+export async function fetchSharedListItems(shareToken: string): Promise<CollegeListItem[]> {
+  // First get the list to verify it's shared
+  const list = await fetchSharedList(shareToken);
+  if (!list) return [];
+
+  const { data, error } = await supabase
+    .from("college_list_items")
+    .select("*")
+    .eq("list_id", list.id)
+    .order("added_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
 }
