@@ -6,6 +6,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { usePageTracking } from "@/hooks/useDatabaseAnalytics";
 
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -37,6 +38,7 @@ const queryClient = new QueryClient();
 // Analytics wrapper component
 function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   useAnalytics();
+  usePageTracking(); // Track page views in database
   return <>{children}</>;
 }
 
