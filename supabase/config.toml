@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.college-scorecard-import]
 verify_jwt = false
+
+[functions.parse-scholarship-criteria]
+verify_jwt = false
