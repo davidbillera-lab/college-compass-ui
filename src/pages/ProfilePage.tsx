@@ -12,11 +12,12 @@ import VideoShowcaseSection from "@/components/profile/VideoShowcaseSection";
 import AthleticAchievementsSection from "@/components/profile/AthleticAchievementsSection";
 import AcademicAchievementsSection from "@/components/profile/AcademicAchievementsSection";
 import CoreBasicsSection, { type CoreBasicsData } from "@/components/profile/CoreBasicsSection";
+import { ApplicationMaterialsHub } from "@/components/application/ApplicationMaterialsHub";
 import { ensureProfileRow, normalizeExtras, saveProfileExtras } from "@/lib/profileExtrasApi";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap, Sparkles } from "lucide-react";
+import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap, Sparkles, FolderOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
@@ -205,7 +206,7 @@ export default function ProfilePage() {
       <ProfileSnapshotCard profile={profile} />
 
       <Tabs defaultValue="basics" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-5 md:grid-cols-9">
           <TabsTrigger value="basics" className="flex items-center gap-1 text-xs">
             <User className="h-4 w-4 hidden sm:inline" />
             <span className="hidden md:inline">Basics</span>
@@ -219,6 +220,11 @@ export default function ProfilePage() {
             <Activity className="h-4 w-4 hidden sm:inline" />
             <span className="hidden md:inline">Activities</span>
             <span className="md:hidden">Acts</span>
+          </TabsTrigger>
+          <TabsTrigger value="materials" className="flex items-center gap-1 text-xs">
+            <FolderOpen className="h-4 w-4 hidden sm:inline" />
+            <span className="hidden md:inline">Materials</span>
+            <span className="md:hidden">Files</span>
           </TabsTrigger>
           <TabsTrigger value="tests" className="flex items-center gap-1 text-xs">
             <Calculator className="h-4 w-4 hidden sm:inline" />
@@ -266,6 +272,10 @@ export default function ProfilePage() {
             extras={extras}
             onChange={(next) => setExtras(next)}
           />
+        </TabsContent>
+
+        <TabsContent value="materials" className="mt-6">
+          <ApplicationMaterialsHub />
         </TabsContent>
 
         <TabsContent value="tests" className="mt-6">
