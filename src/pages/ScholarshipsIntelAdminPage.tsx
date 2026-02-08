@@ -20,7 +20,7 @@ import {
 import { 
   Loader2, Upload, Archive, RotateCcw, Plus, Pencil, 
   GraduationCap, DollarSign, MapPin, Trophy, Users, Briefcase,
-  Search, X, Save, CheckCircle
+  Search, X, Save, CheckCircle, FileSpreadsheet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -28,6 +28,7 @@ import {
   toggleScholarshipStatus, updateScholarshipCriteria 
 } from '@/lib/scholarshipsIntel/api';
 import { Scholarship, NormalizedCriteria } from '@/lib/scholarshipsIntel/types';
+import { CsvImportDialog } from '@/components/scholarships/CsvImportDialog';
 
 // US States for dropdown
 const US_STATES = [
@@ -521,7 +522,12 @@ export default function ScholarshipsIntelAdminPage() {
   const [scholarships, setScholarships] = React.useState<Scholarship[]>([]);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [editingScholarship, setEditingScholarship] = React.useState<Scholarship | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = React.useState(false);
 
+  const refreshScholarships = async () => {
+    const schols = await fetchScholarships();
+    setScholarships(schols);
+  };
   React.useEffect(() => {
     async function checkAdmin() {
       if (!user) { navigate('/auth'); return; }
@@ -602,25 +608,42 @@ export default function ScholarshipsIntelAdminPage() {
         </div>
       </div>
       
-      <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Firecrawl Ingestion</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Label>Start URL</Label>
-              <Input placeholder="https://example.com/scholarships" value={url} onChange={e => setUrl(e.target.value)} />
+      {/* Import Tools */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Firecrawl Ingestion</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <Label>Start URL</Label>
+                <Input placeholder="https://example.com/scholarships" value={url} onChange={e => setUrl(e.target.value)} />
+              </div>
+              <div>
+                <Label>Max Pages</Label>
+                <Input type="number" value={maxPages} onChange={e => setMaxPages(parseInt(e.target.value) || 10)} />
+              </div>
             </div>
-            <div>
-              <Label>Max Pages</Label>
-              <Input type="number" value={maxPages} onChange={e => setMaxPages(parseInt(e.target.value) || 10)} />
-            </div>
-          </div>
-          <Button onClick={handleIngest} disabled={ingesting}>
-            {ingesting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Crawling...</> : <><Upload className="h-4 w-4 mr-2" />Ingest Scholarships</>}
-          </Button>
-          {result && <div className="p-3 bg-muted rounded text-sm">{result}</div>}
-        </CardContent>
-      </Card>
+            <Button onClick={handleIngest} disabled={ingesting} className="w-full">
+              {ingesting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Crawling...</> : <><Upload className="h-4 w-4 mr-2" />Ingest Scholarships</>}
+            </Button>
+            {result && <div className="p-3 bg-muted rounded text-sm">{result}</div>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" />CSV Bulk Import</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload a CSV file to bulk-update eligibility criteria for multiple scholarships at once.
+              The CSV must include a "scholarship_name" column that matches existing scholarships.
+            </p>
+            <Button onClick={() => setCsvImportOpen(true)} variant="outline" className="w-full">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Import Criteria from CSV
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -727,6 +750,14 @@ export default function ScholarshipsIntelAdminPage() {
           />
         )}
       </Dialog>
+
+      {/* CSV Import Dialog */}
+      <CsvImportDialog
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        scholarships={scholarships}
+        onImportComplete={refreshScholarships}
+      />
     </div>
   );
 }
