@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.parse-scholarship-criteria]
 verify_jwt = false
+
+[functions.calculate-match-scores]
+verify_jwt = false

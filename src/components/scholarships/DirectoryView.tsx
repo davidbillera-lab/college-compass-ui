@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addScholarshipToPipeline,
@@ -7,6 +7,8 @@ import {
   type ScholarshipDirectoryRow,
 } from "@/lib/scholarships/directoryApi";
 import DirectoryDetailDrawer from "@/components/scholarships/DirectoryDetailDrawer";
+import { AIMatchScoreBadge } from "@/components/scholarships/AIMatchScoreBadge";
+import { useAIMatchScores } from "@/hooks/useAIMatchScores";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, DollarSign, Calendar, MapPin, ExternalLink, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, DollarSign, Calendar, MapPin, ExternalLink, Plus, Loader2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 12;
@@ -54,6 +56,7 @@ function DeadlineBadge({ rolling, deadline }: { rolling: boolean | null; deadlin
 
 export default function DirectoryView() {
   const qc = useQueryClient();
+  const { scores, loading: aiLoading, calculateScholarshipScores, getScore } = useAIMatchScores();
 
   const [filters, setFilters] = useState<ScholarshipDirectoryFilters>({
     q: "",
@@ -100,6 +103,13 @@ export default function DirectoryView() {
   const goToPage = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setFilters((f) => ({ ...f, page }));
+  };
+
+  // Function to calculate AI scores for visible scholarships
+  const calculateVisibleScores = () => {
+    if (rows.length === 0) return;
+    const ids = rows.map((s) => s.id);
+    calculateScholarshipScores(ids);
   };
 
   return (
@@ -180,11 +190,29 @@ export default function DirectoryView() {
         </Select>
       </div>
 
-      {/* Results count */}
+      {/* Results count and AI scoring */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {isLoading ? "Loading…" : `${totalCount.toLocaleString()} scholarships`}
-        </span>
+        <div className="flex items-center gap-4">
+          <span>
+            {isLoading ? "Loading…" : `${totalCount.toLocaleString()} scholarships`}
+          </span>
+          {!isLoading && rows.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={calculateVisibleScores}
+              disabled={aiLoading}
+              className="gap-1"
+            >
+              {aiLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+              )}
+              {aiLoading ? "Calculating..." : "Get AI Match Scores"}
+            </Button>
+          )}
+        </div>
         <Select
           value={filters.status}
           onValueChange={(v) => setFilters((f) => ({ ...f, status: v as ScholarshipDirectoryFilters["status"], page: 1 }))}
@@ -244,6 +272,16 @@ export default function DirectoryView() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3">
+                  {/* AI Match Score */}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <AIMatchScoreBadge
+                      score={getScore(s.id)}
+                      loading={aiLoading}
+                      onCalculate={() => calculateScholarshipScores([s.id])}
+                      compact
+                    />
+                  </div>
+
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />

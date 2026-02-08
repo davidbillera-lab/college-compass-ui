@@ -366,7 +366,7 @@ export async function batchParseScholarships(
   return { success, failed, errors };
 }
 
-// Recalculate all matches for a user
+// Recalculate all matches for a user (deterministic)
 export async function recalculateMatches(
   userId: string
 ): Promise<Map<string, MatchResult>> {
@@ -391,4 +391,72 @@ export async function recalculateMatches(
   await batchUpsertMatches(userId, results);
   
   return results;
+}
+
+// AI-powered match score result
+export interface AIMatchScoreResult {
+  overall_score: number;
+  eligibility_status: 'eligible' | 'maybe' | 'ineligible';
+  breakdown: Array<{
+    category: string;
+    score: number;
+    maxScore: number;
+    details: string;
+  }>;
+  reasoning: string;
+  missing_fields: string[];
+}
+
+// Calculate AI-powered match scores for scholarships
+export async function calculateAIScholarshipScores(
+  scholarshipIds: string[]
+): Promise<{ results: Record<string, AIMatchScoreResult>; error?: string }> {
+  if (scholarshipIds.length === 0) {
+    return { results: {} };
+  }
+
+  const { data, error } = await supabase.functions.invoke('calculate-match-scores', {
+    body: {
+      type: 'scholarships',
+      scholarship_ids: scholarshipIds,
+    },
+  });
+
+  if (error) {
+    console.error('AI scoring error:', error);
+    return { results: {}, error: error.message };
+  }
+
+  if (data?.error) {
+    return { results: {}, error: data.error };
+  }
+
+  return { results: data.results || {} };
+}
+
+// Calculate AI-powered match scores for colleges
+export async function calculateAICollegeScores(
+  collegeIds: string[]
+): Promise<{ results: Record<string, AIMatchScoreResult>; error?: string }> {
+  if (collegeIds.length === 0) {
+    return { results: {} };
+  }
+
+  const { data, error } = await supabase.functions.invoke('calculate-match-scores', {
+    body: {
+      type: 'colleges',
+      college_ids: collegeIds,
+    },
+  });
+
+  if (error) {
+    console.error('AI scoring error:', error);
+    return { results: {}, error: error.message };
+  }
+
+  if (data?.error) {
+    return { results: {}, error: data.error };
+  }
+
+  return { results: data.results || {} };
 }
