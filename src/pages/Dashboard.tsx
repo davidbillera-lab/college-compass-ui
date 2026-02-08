@@ -1,16 +1,14 @@
-import { useState } from "react";
+import * as React from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatCard } from "@/components/ui/stat-card";
-import ProfileCompletionWizard from "@/components/profile/ProfileCompletionWizard";
 import { 
   mockColleges, 
   mockScholarships, 
   mockNextActions,
-  mockStudentProfile 
 } from "@/lib/mockData";
 import { 
   Target, 
@@ -25,8 +23,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+// Lazy load the wizard to avoid circular dependency issues
+const ProfileCompletionWizard = React.lazy(() => import("@/components/profile/ProfileCompletionWizard"));
+
 export default function Dashboard() {
-  const [showWizard, setShowWizard] = useState(false);
+  const [showWizard, setShowWizard] = React.useState(false);
   const { userName, profileStrength, currentRole } = useApp();
   const firstName = userName.split(" ")[0];
 
@@ -52,10 +53,12 @@ export default function Dashboard() {
 
       {/* Profile Completion Wizard or Summary */}
       {showWizard ? (
-        <ProfileCompletionWizard 
-          onComplete={() => setShowWizard(false)}
-          onFieldUpdate={() => {}}
-        />
+        <React.Suspense fallback={<Card className="animate-pulse p-8"><div className="h-8 bg-muted rounded w-1/3 mb-4" /></Card>}>
+          <ProfileCompletionWizard 
+            onComplete={() => setShowWizard(false)}
+            onFieldUpdate={() => {}}
+          />
+        </React.Suspense>
       ) : (
         <Card variant="highlight">
           <CardContent className="py-6">
