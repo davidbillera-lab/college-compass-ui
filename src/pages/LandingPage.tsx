@@ -1,7 +1,13 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { 
   Target, 
   Sparkles,
@@ -13,6 +19,7 @@ import {
   Eye,
   TrendingUp,
   DollarSign,
+  ChevronDown,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.png";
 
@@ -94,6 +101,8 @@ const comparisonData = [
 ];
 
 export default function LandingPage() {
+  const [openOnboarding, setOpenOnboarding] = useState(false);
+
   return (
     <main className="flex flex-col" role="main">
       {/* Hero Section */}
@@ -359,6 +368,40 @@ export default function LandingPage() {
               </div>
               <p className="text-muted-foreground mb-6">Full transparency. No hidden fees. Cancel anytime.</p>
               
+              <Collapsible open={openOnboarding} onOpenChange={setOpenOnboarding} className="mb-6 border border-border rounded-lg p-4 bg-muted/30">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-left font-medium text-foreground hover:text-primary transition-colors">
+                    <span>What's included in the $199 onboarding fee?</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${openOnboarding ? 'rotate-180' : ''}`} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4 pt-4 border-t border-border">
+                  <ul className="space-y-3 text-sm text-foreground">
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>Personal Profile Assessment</strong> - AI analyzes your academics, activities, and goals</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>Initial Scholarship Matches</strong> - Get matched to scholarships you qualify for</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>College Fit Analysis</strong> - Colleges ranked by affordability & admit probability</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>Parent Dashboard Setup</strong> - Enable parents to track your progress</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>Onboarding Guidance</strong> - Orientation to all platform features</span>
+                    </li>
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-4">After onboarding, continue with unlimited access to essay coaching, deadline tracking, and monthly scholarship updates.</p>
+                </CollapsibleContent>
+              </Collapsible>
+              
               <ul className="text-left max-w-sm mx-auto space-y-3 mb-8 text-foreground">
                 <li className="flex items-center gap-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -411,62 +454,58 @@ export default function LandingPage() {
       {/* FAQ Section */}
       <section className="py-20 md:py-28" aria-labelledby="faq-heading">
         <div className="container px-4 md:px-6">
-          <div className="max-w-2xl mx-auto">
-            <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-12 text-center">
-              Common questions answered
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Common questions, honest answers
             </h2>
+            <p className="text-lg text-muted-foreground">
+              Everything you need to know about Campus Climb Kit.
+            </p>
+          </div>
 
-            <div className="space-y-6">
-              {[
-                {
-                  q: "Is there really no credit card required?",
-                  a: "Correct. You can create an account and explore the app completely free. Only pay if you upgrade to premium features."
-                },
-                {
-                  q: "How is this different from Fastweb?",
-                  a: "Fastweb sells your data, sends 10+ daily emails, and has outdated scholarships. We don't sell data, send zero spam, and update scholarships daily."
-                },
-                {
-                  q: "Why is your essay coaching better than CollegeVine?",
-                  a: "CollegeVine charges $150-300 per essay. Our AI coaches you for free as part of your subscription, and we provide feedback on unlimited essays."
-                },
-                {
-                  q: "Can my parents see my progress?",
-                  a: "Yes! We include a parent dashboard so your family can track deadlines, scholarship status, and overall progress."
-                },
-                {
-                  q: "Do I need a counselor to use this?",
-                  a: "No. Our app is designed specifically for students without access to counselors. It's like having an AI advisor 24/7."
-                },
-              ].map((item, i) => (
-                <details key={i} className="group border border-border rounded-lg p-6 hover:border-primary/50 transition-colors cursor-pointer">
-                  <summary className="flex items-center justify-between font-semibold text-foreground cursor-pointer">
-                    {item.q}
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-open:rotate-90 transition-transform" />
-                  </summary>
-                  <p className="mt-4 text-muted-foreground leading-relaxed">
-                    {item.a}
-                  </p>
-                </details>
-              ))}
-            </div>
+          <div className="max-w-2xl mx-auto space-y-4">
+            {[
+              {
+                q: "Can I try it for free?",
+                a: "Yes! Sign up for free and explore the platform. You'll get limited access to features. Paid features unlock when you upgrade.",
+              },
+              {
+                q: "What if I don't like it?",
+                a: "We offer a full refund within 30 days if you're not satisfied. No questions asked. But we're confident you'll love it.",
+              },
+              {
+                q: "Do parents really need to be involved?",
+                a: "Nope, that's up to you. The parent dashboard is optional. You can share access whenever you want.",
+              },
+              {
+                q: "Will you sell my data?",
+                a: "Never. We don't sell data or share emails with third parties. Your information stays with you.",
+              },
+            ].map((faq, i) => (
+              <Card key={i} className="border border-border">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{faq.q}</h3>
+                  <p className="text-muted-foreground">{faq.a}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 md:py-28 bg-foreground text-primary-foreground">
+      <section className="py-20 md:py-28 bg-gradient-to-r from-primary/10 to-primary/5">
         <div className="container px-4 md:px-6">
           <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Don't let this application cycle be stressful
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Your college journey starts here
             </h2>
-            <p className="text-lg opacity-90 mb-8">
-              Thousands of students are already using Campus Climb Kit to find scholarships, plan for college, and apply with confidence.
+            <p className="text-lg text-muted-foreground mb-8">
+              2,500+ students are already finding scholarships and getting into better colleges.
             </p>
-            <Button size="lg" variant="secondary" asChild>
+            <Button size="lg" variant="default" asChild>
               <Link to="/auth">
-                Create Your Free Account
+                Create Free Account
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Link>
             </Button>
