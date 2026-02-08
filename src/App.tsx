@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import ScholarshipsIntelPage from "./pages/ScholarshipsIntelPage";
 import ScholarshipsIntelAdminPage from "./pages/ScholarshipsIntelAdminPage";
 import CollegeListsPage from "./pages/CollegeListsPage";
+import SharedListPage from "./pages/SharedListPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -46,6 +47,9 @@ export default function App() {
             <Route path="/onboarding/story" element={<OnboardingStoryPage />} />
             <Route path="/onboarding/activities" element={<OnboardingActivitiesPage />} />
             <Route path="/onboarding/results" element={<OnboardingResultsPage />} />
+            
+            {/* Public shared list page */}
+            <Route path="/shared-list/:shareToken" element={<SharedListPage />} />
             
             {/* Protected app routes with sidebar layout */}
             <Route element={<ProtectedRoute />}>

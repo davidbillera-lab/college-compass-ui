@@ -9,6 +9,7 @@ import {
   removeCollegeFromList,
   CollegeListWithCount,
   CollegeListItem,
+  CollegeList,
 } from "@/lib/collegeLists/api";
 import { fetchColleges } from "@/lib/collegeIntel/api";
 import { College } from "@/lib/collegeIntel/types";
@@ -44,8 +45,10 @@ import {
   ArrowLeft,
   Loader2,
   ExternalLink,
+  Share2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ShareListDialog } from "@/components/colleges/ShareListDialog";
 
 const LIST_COLORS = [
   { value: "blue", label: "Blue", class: "bg-blue-500" },
@@ -75,6 +78,10 @@ export default function CollegeListsPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = React.useState<CollegeListWithCount | null>(null);
+
+  // Share dialog
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [shareTarget, setShareTarget] = React.useState<CollegeList | null>(null);
 
   React.useEffect(() => {
     if (user) {
@@ -224,6 +231,16 @@ export default function CollegeListsPage() {
               </div>
               <Button
                 variant="outline"
+                onClick={() => {
+                  setShareTarget(selectedList);
+                  setShareDialogOpen(true);
+                }}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => navigate("/colleges")}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -296,6 +313,14 @@ export default function CollegeListsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Share Dialog */}
+        <ShareListDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          list={shareTarget}
+          onListUpdated={loadLists}
+        />
       </div>
     );
   }
@@ -353,24 +378,45 @@ export default function CollegeListsPage() {
                       className={`w-4 h-4 rounded-full ${getColorClass(list.color)}`}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{list.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{list.name}</p>
+                        {list.share_token && (
+                          <span title="Shared">
+                            <Share2 className="h-3 w-3 text-muted-foreground" />
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         {list.item_count} college{list.item_count !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(list);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                  </Button>
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShareTarget(list);
+                        setShareDialogOpen(true);
+                      }}
+                    >
+                      <Share2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(list);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -456,6 +502,14 @@ export default function CollegeListsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share Dialog */}
+      <ShareListDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        list={shareTarget}
+        onListUpdated={loadLists}
+      />
     </div>
   );
 }
