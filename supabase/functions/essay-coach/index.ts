@@ -147,7 +147,7 @@ Keep responses focused and actionable. Use bullet points for specific feedback.`
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro", // Using high-quality model for essay feedback
+        model: "openai/gpt-5.2", // Using high-quality model for essay feedback
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
