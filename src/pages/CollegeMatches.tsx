@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchColleges, fetchCollegeProfile } from "../lib/collegeIntel/api";
 import { calculateAllCollegeMatches } from "../lib/collegeIntel/matching";
@@ -67,6 +68,7 @@ function nextStatus(s: "interested" | "applying" | "applied" | "not_now") {
 }
 
 export default function CollegeMatches() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [items, setItems] = React.useState<CollegeRecommendation[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -214,52 +216,57 @@ export default function CollegeMatches() {
                   {items.length} colleges matched based on your profile. Filter by reach/target/likely and sort by score.
                 </p>
               </div>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/college-compare")}
+              >
+                Compare Colleges
+              </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mt-4">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search colleges…"
+                className="md:w-[260px]"
+              />
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search colleges…"
-                  className="md:w-[260px]"
-                />
-
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant={bandFilter === "all" ? "default" : "outline"}
-                    onClick={() => setBandFilter("all")}
-                  >
-                    All
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={bandFilter === "likely" ? "default" : "outline"}
-                    onClick={() => setBandFilter("likely")}
-                  >
-                    Likely
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={bandFilter === "target" ? "default" : "outline"}
-                    onClick={() => setBandFilter("target")}
-                  >
-                    Target
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={bandFilter === "reach" ? "default" : "outline"}
-                    onClick={() => setBandFilter("reach")}
-                  >
-                    Reach
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={shortlistedOnly ? "default" : "outline"}
-                    onClick={() => setShortlistedOnly((v) => !v)}
-                  >
-                    Shortlisted
-                  </Button>
-                </div>
+              <div className="flex gap-1 flex-wrap">
+                <Button
+                  size="sm"
+                  variant={bandFilter === "all" ? "default" : "outline"}
+                  onClick={() => setBandFilter("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  size="sm"
+                  variant={bandFilter === "likely" ? "default" : "outline"}
+                  onClick={() => setBandFilter("likely")}
+                >
+                  Likely
+                </Button>
+                <Button
+                  size="sm"
+                  variant={bandFilter === "target" ? "default" : "outline"}
+                  onClick={() => setBandFilter("target")}
+                >
+                  Target
+                </Button>
+                <Button
+                  size="sm"
+                  variant={bandFilter === "reach" ? "default" : "outline"}
+                  onClick={() => setBandFilter("reach")}
+                >
+                  Reach
+                </Button>
+                <Button
+                  size="sm"
+                  variant={shortlistedOnly ? "default" : "outline"}
+                  onClick={() => setShortlistedOnly((v) => !v)}
+                >
+                  Shortlisted
+                </Button>
               </div>
             </div>
           </CardHeader>
