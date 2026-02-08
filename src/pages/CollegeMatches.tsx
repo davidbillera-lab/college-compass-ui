@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import {
   Table,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/table";
 
 import CollegeDetailsDrawer from "../components/CollegeDetailsDrawer";
+import { Scale } from "lucide-react";
 
 type SortKey = "collegeName" | "overallScore" | "fitBand";
 type SortDir = "asc" | "desc";
@@ -84,10 +86,30 @@ export default function CollegeMatches() {
   const [selected, setSelected] = React.useState<CollegeRecommendation | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
+  // Compare selection state
+  const [compareSelection, setCompareSelection] = React.useState<Set<string>>(new Set());
+
   // Shortlist state
   const [shortlist, setShortlist] = React.useState<Record<string, ShortlistItem>>(() =>
     loadShortlist()
   );
+
+  const toggleCompareSelection = (collegeId: string) => {
+    setCompareSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(collegeId)) {
+        next.delete(collegeId);
+      } else if (next.size < 3) {
+        next.add(collegeId);
+      }
+      return next;
+    });
+  };
+
+  const goToCompare = () => {
+    const ids = Array.from(compareSelection).join(",");
+    navigate(`/college-compare?ids=${ids}`);
+  };
 
   // Load and calculate college matches
   React.useEffect(() => {
@@ -276,6 +298,9 @@ export default function CollegeMatches() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <span className="sr-only">Compare</span>
+                    </TableHead>
                     <TableHead>
                       <Button
                         variant="ghost"
@@ -321,6 +346,14 @@ export default function CollegeMatches() {
                         setDrawerOpen(true);
                       }}
                     >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={compareSelection.has(r.collegeId)}
+                          onCheckedChange={() => toggleCompareSelection(r.collegeId)}
+                          disabled={!compareSelection.has(r.collegeId) && compareSelection.size >= 3}
+                          aria-label={`Select ${r.collegeName} for comparison`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         {r.collegeName}
                         {shortlist[r.id] && (
@@ -409,7 +442,7 @@ export default function CollegeMatches() {
 
                   {sorted.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         No matches found.
                       </TableCell>
                     </TableRow>
@@ -423,6 +456,20 @@ export default function CollegeMatches() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Floating compare button */}
+      {compareSelection.size >= 2 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            size="lg"
+            onClick={goToCompare}
+            className="shadow-lg gap-2"
+          >
+            <Scale className="h-5 w-5" />
+            Compare {compareSelection.size} Colleges
+          </Button>
+        </div>
       )}
 
       <CollegeDetailsDrawer
