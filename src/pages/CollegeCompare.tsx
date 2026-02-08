@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Plus, Search, ExternalLink, MapPin, Users, DollarSign, GraduationCap, Award } from "lucide-react";
+import { X, Plus, Search, ExternalLink, MapPin, Users, DollarSign, GraduationCap, Award, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function formatCurrency(value?: number | null) {
   if (value == null) return "—";
@@ -103,6 +105,61 @@ export default function CollegeCompare() {
     setSelectedColleges(selectedColleges.filter(c => c.id !== collegeId));
   };
 
+  const exportToPDF = () => {
+    if (selectedColleges.length < 2) return;
+
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.text("College Comparison", 14, 20);
+    
+    // Date
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 28);
+    
+    // Build comparison data
+    const headers = ["Metric", ...selectedColleges.map(c => c.name)];
+    
+    const rows = [
+      ["Type", ...selectedColleges.map(c => c.type || "—")],
+      ["Location", ...selectedColleges.map(c => `${c.city || "—"}, ${c.state || "—"}`)],
+      ["Setting", ...selectedColleges.map(c => c.setting || "—")],
+      ["Size", ...selectedColleges.map(c => c.size || "—")],
+      ["Student Population", ...selectedColleges.map(c => c.student_population ? c.student_population.toLocaleString() : "—")],
+      ["Acceptance Rate", ...selectedColleges.map(c => c.acceptance_rate ? `${Math.round(c.acceptance_rate)}%` : "—")],
+      ["SAT Range", ...selectedColleges.map(c => c.sat_range_low && c.sat_range_high ? `${c.sat_range_low} - ${c.sat_range_high}` : "—")],
+      ["ACT Range", ...selectedColleges.map(c => c.act_range_low && c.act_range_high ? `${c.act_range_low} - ${c.act_range_high}` : "—")],
+      ["Avg GPA", ...selectedColleges.map(c => c.avg_gpa ? c.avg_gpa.toFixed(2) : "—")],
+      ["In-State Tuition", ...selectedColleges.map(c => c.tuition_in_state ? formatCurrency(c.tuition_in_state) : "—")],
+      ["Out-of-State Tuition", ...selectedColleges.map(c => c.tuition_out_state ? formatCurrency(c.tuition_out_state) : "—")],
+      ["Avg Net Price", ...selectedColleges.map(c => c.sticker_usd ? formatCurrency(c.sticker_usd) : "—")],
+      ["Avg Financial Aid", ...selectedColleges.map(c => c.avg_financial_aid ? formatCurrency(c.avg_financial_aid) : "—")],
+      ["Graduation Rate", ...selectedColleges.map(c => c.graduation_rate ? `${Math.round(c.graduation_rate)}%` : "—")],
+      ["Retention Rate", ...selectedColleges.map(c => c.retention_rate ? `${Math.round(c.retention_rate)}%` : "—")],
+      ["Student-Faculty Ratio", ...selectedColleges.map(c => c.student_faculty_ratio ? `${c.student_faculty_ratio}:1` : "—")],
+      ["Athletics", ...selectedColleges.map(c => c.athletics_division || "—")],
+      ["Website", ...selectedColleges.map(c => c.website_url || "—")],
+    ];
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: 35,
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        0: { fontStyle: "bold", cellWidth: 45 },
+      },
+    });
+
+    // Generate filename with college names
+    const collegeNames = selectedColleges.map(c => c.name.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20)).join("_vs_");
+    doc.save(`College_Comparison_${collegeNames}.pdf`);
+  };
+
   const filteredColleges = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return [];
@@ -137,9 +194,17 @@ export default function CollegeCompare() {
                 Select up to 3 colleges to compare side-by-side
               </p>
             </div>
-            <Button variant="outline" onClick={() => navigate("/colleges")}>
-              ← Back to Matches
-            </Button>
+            <div className="flex gap-2">
+              {selectedColleges.length >= 2 && (
+                <Button variant="default" onClick={exportToPDF}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => navigate("/colleges")}>
+                ← Back to Matches
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
