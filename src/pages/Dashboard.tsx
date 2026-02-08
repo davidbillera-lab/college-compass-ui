@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatCard } from "@/components/ui/stat-card";
+import ProfileCompletionWizard from "@/components/profile/ProfileCompletionWizard";
 import { 
   mockColleges, 
   mockScholarships, 
@@ -24,6 +26,7 @@ import {
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
+  const [showWizard, setShowWizard] = useState(false);
   const { userName, profileStrength, currentRole } = useApp();
   const firstName = userName.split(" ")[0];
 
@@ -47,34 +50,47 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Profile Completion */}
-      <Card variant="highlight">
-        <CardContent className="py-6">
-          <div className="flex flex-col md:flex-row md:items-center gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="font-semibold text-foreground">Profile Strength</h3>
-                <Badge variant={profileStrength >= 80 ? "success" : profileStrength >= 50 ? "warning" : "secondary"}>
-                  {profileStrength >= 80 ? "Strong" : profileStrength >= 50 ? "Good" : "Needs Work"}
-                </Badge>
+      {/* Profile Completion Wizard or Summary */}
+      {showWizard ? (
+        <ProfileCompletionWizard 
+          onComplete={() => setShowWizard(false)}
+          onFieldUpdate={() => {}}
+        />
+      ) : (
+        <Card variant="highlight">
+          <CardContent className="py-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="font-semibold text-foreground">Profile Strength</h3>
+                  <Badge variant={profileStrength >= 80 ? "success" : profileStrength >= 50 ? "warning" : "secondary"}>
+                    {profileStrength >= 80 ? "Strong" : profileStrength >= 50 ? "Good" : "Needs Work"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Complete your profile to unlock more college matches and scholarship opportunities.
+                </p>
+                <Progress 
+                  value={profileStrength} 
+                  variant="primary" 
+                  indicatorVariant="gradient"
+                  size="lg"
+                  className="max-w-md"
+                />
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Complete your profile to unlock more college matches and scholarship opportunities.
-              </p>
-              <Progress 
-                value={profileStrength} 
-                variant="primary" 
-                indicatorVariant="gradient"
-                size="lg"
-                className="max-w-md"
-              />
+              <div className="flex items-center gap-4">
+                <div className="text-4xl font-bold text-primary">
+                  {profileStrength}%
+                </div>
+                <Button variant="outline" onClick={() => setShowWizard(true)}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Boost Profile
+                </Button>
+              </div>
             </div>
-            <div className="text-4xl font-bold text-primary">
-              {profileStrength}%
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
