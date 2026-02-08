@@ -56,13 +56,27 @@
       "operatingSystem": "Web",
       "description": "AI-powered college matching, scholarship finder, and essay coaching platform for high school students.",
       "url": "https://campus-climb-kit.lovable.app",
-      "offers": {
-        "@type": "Offer",
-        "price": "19.99",
-        "priceCurrency": "USD",
-        "priceValidUntil": "2027-12-31",
-        "availability": "https://schema.org/InStock"
-      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "One-time Onboarding Fee",
+          "price": "199.00",
+          "priceCurrency": "USD",
+          "priceValidUntil": "2027-12-31",
+          "availability": "https://schema.org/InStock",
+          "description": "One-time setup fee for new users"
+        },
+        {
+          "@type": "Offer",
+          "name": "Premium Monthly Subscription",
+          "price": "19.99",
+          "priceCurrency": "USD",
+          "priceValidUntil": "2027-12-31",
+          "availability": "https://schema.org/InStock",
+          "description": "Monthly subscription for unlimited access to all premium features",
+          "billingDuration": "P1M"
+        }
+      ],
       "aggregateRating": {
         "@type": "AggregateRating",
         "ratingValue": "4.9",
@@ -87,13 +101,21 @@
       "@type": "FAQPage",
       "mainEntity": [
         {
-          "@type": "Question",
-          "name": "Is there really no credit card required?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes! You can create a free account and explore the platform without entering any payment information. We only ask for payment when you're ready to unlock premium features."
-          }
-        },
+           "@type": "Question",
+           "name": "What are the pricing and fees?",
+           "acceptedAnswer": {
+             "@type": "Answer",
+             "text": "Campus Climb Kit costs $199 as a one-time onboarding fee plus $19.99/month for the premium subscription. No hidden fees. You can cancel anytime. No credit card required to sign up for the free account."
+           }
+         },
+        {
+           "@type": "Question",
+           "name": "Is there really no credit card required?",
+           "acceptedAnswer": {
+             "@type": "Answer",
+             "text": "Yes! You can create a free account and explore the platform without entering any payment information. We only ask for payment when you're ready to unlock premium features."
+           }
+         },
         {
           "@type": "Question",
           "name": "How is this different from Fastweb?",
