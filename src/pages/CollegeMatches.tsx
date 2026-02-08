@@ -32,7 +32,8 @@ import {
 
 import CollegeDetailsDrawer from "../components/CollegeDetailsDrawer";
 import { AdvancedFilters, AdvancedFiltersState, defaultFilters } from "../components/colleges/AdvancedFilters";
-import { Scale } from "lucide-react";
+import { AddToListDialog } from "../components/colleges/AddToListDialog";
+import { Scale, FolderPlus } from "lucide-react";
 
 // Extended recommendation with college data for filtering
 interface ExtendedRecommendation extends CollegeRecommendation {
@@ -96,6 +97,9 @@ export default function CollegeMatches() {
 
   // Compare selection state
   const [compareSelection, setCompareSelection] = React.useState<Set<string>>(new Set());
+
+  // Add to list dialog state
+  const [addToListCollege, setAddToListCollege] = React.useState<{id: string; name: string} | null>(null);
 
   // Shortlist state
   const [shortlist, setShortlist] = React.useState<Record<string, ShortlistItem>>(() =>
@@ -294,12 +298,21 @@ export default function CollegeMatches() {
                   {items.length} colleges matched based on your profile. Filter by reach/target/likely and sort by score.
                 </p>
               </div>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate("/college-compare")}
-              >
-                Compare Colleges
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate("/college-lists")}
+                >
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  My Lists
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate("/college-compare")}
+                >
+                  Compare Colleges
+                </Button>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4">
               <Input
@@ -410,6 +423,7 @@ export default function CollegeMatches() {
 
                     <TableHead>Est. Cost</TableHead>
                     <TableHead>Why it matches</TableHead>
+                    <TableHead className="w-[100px]">Lists</TableHead>
                     <TableHead className="w-[14%]">Shortlist</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -469,6 +483,16 @@ export default function CollegeMatches() {
                           ))}
                         </ul>
                       </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAddToListCollege({ id: r.collegeId, name: r.collegeName })}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <FolderPlus className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         {shortlist[r.collegeId] ? (
                           <button
@@ -519,7 +543,7 @@ export default function CollegeMatches() {
 
                   {sorted.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No matches found.
                       </TableCell>
                     </TableRow>
@@ -577,6 +601,14 @@ export default function CollegeMatches() {
           if (!selected) return;
           setShortlist((m: any) => setNotes(m, selected.collegeId, n));
         }}
+      />
+
+      {/* Add to List Dialog */}
+      <AddToListDialog
+        open={!!addToListCollege}
+        onOpenChange={(open) => !open && setAddToListCollege(null)}
+        collegeId={addToListCollege?.id || ""}
+        collegeName={addToListCollege?.name || ""}
       />
     </div>
   );

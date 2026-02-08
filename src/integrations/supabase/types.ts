@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      college_list_items: {
+        Row: {
+          added_at: string
+          college_id: string
+          id: string
+          list_id: string
+          notes: string | null
+        }
+        Insert: {
+          added_at?: string
+          college_id: string
+          id?: string
+          list_id: string
+          notes?: string | null
+        }
+        Update: {
+          added_at?: string
+          college_id?: string
+          id?: string
+          list_id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "college_list_items_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "college_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "college_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      college_lists: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       college_matches: {
         Row: {
           academic_match_score: number | null

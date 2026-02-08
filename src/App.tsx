@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ScholarshipsIntelPage from "./pages/ScholarshipsIntelPage";
 import ScholarshipsIntelAdminPage from "./pages/ScholarshipsIntelAdminPage";
+import CollegeListsPage from "./pages/CollegeListsPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="/college-library" element={<CollegeLibraryPage />} />
                 <Route path="/college-compare" element={<CollegeCompare />} />
                 <Route path="/colleges" element={<CollegeMatches />} />
+                <Route path="/college-lists" element={<CollegeListsPage />} />
                 <Route path="/scholarships" element={<Scholarships />} />
                 <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
                 <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
