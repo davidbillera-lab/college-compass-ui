@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Scholarship, ScholarshipQuestion, ScholarshipUserAnswer, ScholarshipMatch, Profile, MatchResult } from './types';
+import { Scholarship, ScholarshipQuestion, ScholarshipUserAnswer, ScholarshipMatch, Profile, MatchResult, NormalizedCriteria } from './types';
 import { calculateMatch } from './matching';
 
 // Fetch all active scholarships
@@ -281,6 +281,25 @@ export async function toggleScholarshipStatus(
   
   if (error) {
     console.error('Error toggling status:', error);
+    throw error;
+  }
+}
+
+// Update scholarship criteria (admin only)
+export async function updateScholarshipCriteria(
+  scholarshipId: string,
+  criteria: NormalizedCriteria
+): Promise<void> {
+  const { error } = await supabase
+    .from('scholarships')
+    .update({ 
+      normalized_criteria: criteria as unknown as Record<string, never>, 
+      updated_at: new Date().toISOString() 
+    })
+    .eq('id', scholarshipId);
+  
+  if (error) {
+    console.error('Error updating criteria:', error);
     throw error;
   }
 }

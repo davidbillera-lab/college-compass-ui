@@ -19,18 +19,67 @@ export interface ScholarshipUserAnswer {
 }
 
 export interface NormalizedCriteria {
+  // Academic requirements
   min_gpa?: number | null;
-  states?: string[] | null;
-  need_based?: boolean | null;
-  first_gen?: boolean | null;
+  max_gpa?: number | null;
+  min_sat?: number | null;
+  max_sat?: number | null;
+  min_act?: number | null;
+  max_act?: number | null;
+  min_psat?: number | null;
+  class_rank_percentile?: number | null; // e.g., top 10% = 10
+  requires_ap_courses?: boolean | null;
+  min_ap_courses?: number | null;
+  
+  // Extracurricular requirements
   volunteer_hours_min?: number | null;
-  athletics?: string[] | null;
+  leadership_required?: boolean | null;
+  community_service_required?: boolean | null;
+  
+  // Athletic requirements
+  athletics?: string[] | null; // specific sports
+  athletic_division?: string[] | null; // D1, D2, D3, NAIA
+  varsity_required?: boolean | null;
+  
+  // Financial/demographic
+  need_based?: boolean | null;
+  merit_based?: boolean | null;
+  first_gen?: boolean | null;
+  max_family_income?: number | null;
+  pell_eligible?: boolean | null;
+  
+  // Location
+  states?: string[] | null;
+  citizenship?: string[] | null; // US Citizen, Permanent Resident, DACA, etc.
+  
+  // Academic interests
   majors?: string[] | null;
   career_goals?: string[] | null;
+  
+  // Demographics (optional boosters, never disqualifiers)
   demographics_optional?: {
     race?: string[];
+    gender?: string[];
     religion?: string[];
+    disability?: boolean;
+    military_affiliated?: boolean;
+    lgbtq?: boolean;
   } | null;
+  
+  // Education level
+  education_levels?: string[] | null; // high school senior, college freshman, etc.
+  
+  // Special requirements
+  essay_required?: boolean | null;
+  interview_required?: boolean | null;
+  recommendation_letters?: number | null;
+  
+  // Awards/achievements
+  requires_awards?: boolean | null;
+  specific_awards?: string[] | null;
+  
+  // Work experience
+  work_experience_hours_min?: number | null;
 }
 
 export interface Scholarship {
@@ -85,16 +134,47 @@ export interface Profile {
   gpa_scale?: number | null;
   sat_score?: number | null;
   act_score?: number | null;
+  psat_score?: number | null;
+  class_rank?: string | null;
+  class_size?: number | null;
   intended_majors?: string[] | null;
   region?: string | null;
+  state?: string | null;
   grad_year?: number | null;
   graduation_year?: number | null;
+  citizenship?: string | null;
+  first_gen_college?: boolean | null;
+  financial_need?: boolean | null;
+  estimated_efc?: number | null;
+  volunteer_hours?: number | null;
+  work_experience_hours?: number | null;
+  leadership_roles?: string[] | null;
+  sports_played?: string[] | null;
+  awards?: string[] | null;
+  ap_courses?: string[] | null;
+  honors_courses?: string[] | null;
   profile_extras?: {
     admin?: boolean;
-    activities?: Array<{ category?: string }>;
+    activities?: Array<{ 
+      category?: string;
+      title?: string;
+      description?: string;
+      hours_per_week?: number;
+      weeks_per_year?: number;
+      years?: number;
+    }>;
+    athletic_achievements?: Array<{
+      sport?: string;
+      level?: string;
+      achievement?: string;
+    }>;
     sensitive?: {
       race_ethnicity?: string[];
+      gender?: string;
       religion?: string;
+      disability?: boolean;
+      military_affiliated?: boolean;
+      lgbtq?: boolean;
     };
     [key: string]: unknown;
   };
