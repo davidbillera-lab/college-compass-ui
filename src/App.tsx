@@ -5,6 +5,7 @@ import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
@@ -21,6 +22,8 @@ import ScholarshipsIntelPage from "./pages/ScholarshipsIntelPage";
 import ScholarshipsIntelAdminPage from "./pages/ScholarshipsIntelAdminPage";
 import CollegeListsPage from "./pages/CollegeListsPage";
 import SharedListPage from "./pages/SharedListPage";
+import LandingPage from "./pages/LandingPage";
+import ParentDashboard from "./pages/ParentDashboard";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -31,52 +34,61 @@ import OnboardingResultsPage from "./onboarding/OnboardingResultsPage";
 
 const queryClient = new QueryClient();
 
+// Analytics wrapper component
+function AnalyticsProvider({ children }: { children: React.ReactNode }) {
+  useAnalytics();
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <SubscriptionProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Auth routes */}
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/login" element={<Navigate to="/auth" replace />} />
-            
-            {/* Onboarding routes */}
-            <Route path="/start" element={<OnboardingGate />} />
-            <Route path="/welcome" element={<WelcomePage />} />
-            <Route path="/onboarding/basics" element={<OnboardingBasicsPage />} />
-            <Route path="/onboarding/story" element={<OnboardingStoryPage />} />
-            <Route path="/onboarding/activities" element={<OnboardingActivitiesPage />} />
-            <Route path="/onboarding/results" element={<OnboardingResultsPage />} />
-            
-            {/* Public shared list page */}
-            <Route path="/shared-list/:shareToken" element={<SharedListPage />} />
-            
-            {/* Protected app routes with sidebar layout */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/discovery" element={<DiscoveryPage />} />
-                <Route path="/college-library" element={<CollegeLibraryPage />} />
-                <Route path="/college-compare" element={<CollegeCompare />} />
-                <Route path="/colleges" element={<CollegeMatches />} />
-                <Route path="/college-lists" element={<CollegeListsPage />} />
-                <Route path="/scholarships" element={<Scholarships />} />
-                <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
-                <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
-                <Route path="/essays" element={<Essays />} />
-                <Route path="/settings" element={<Settings />} />
+          <AnalyticsProvider>
+            <Routes>
+              {/* Public landing page */}
+              <Route path="/" element={<LandingPage />} />
+              
+              {/* Auth routes */}
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/login" element={<Navigate to="/auth" replace />} />
+              
+              {/* Onboarding routes */}
+              <Route path="/start" element={<OnboardingGate />} />
+              <Route path="/welcome" element={<WelcomePage />} />
+              <Route path="/onboarding/basics" element={<OnboardingBasicsPage />} />
+              <Route path="/onboarding/story" element={<OnboardingStoryPage />} />
+              <Route path="/onboarding/activities" element={<OnboardingActivitiesPage />} />
+              <Route path="/onboarding/results" element={<OnboardingResultsPage />} />
+              
+              {/* Public shared list page */}
+              <Route path="/shared-list/:shareToken" element={<SharedListPage />} />
+              
+              {/* Protected app routes with sidebar layout */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/parent" element={<ParentDashboard />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/discovery" element={<DiscoveryPage />} />
+                  <Route path="/college-library" element={<CollegeLibraryPage />} />
+                  <Route path="/college-compare" element={<CollegeCompare />} />
+                  <Route path="/colleges" element={<CollegeMatches />} />
+                  <Route path="/college-lists" element={<CollegeListsPage />} />
+                  <Route path="/scholarships" element={<Scholarships />} />
+                  <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
+                  <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
+                  <Route path="/essays" element={<Essays />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
               </Route>
-            </Route>
-            
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AnalyticsProvider>
         </BrowserRouter>
         <Toaster />
         </SubscriptionProvider>
