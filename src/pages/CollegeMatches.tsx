@@ -6,6 +6,7 @@ import { calculateAllCollegeMatches } from "../lib/collegeIntel/matching";
 import { CollegeRecommendation } from "../types/college";
 import { FitBand } from "../types/index";
 import { ShortlistItem, CollegeStatus } from "../types/shortlist";
+import { College } from "../lib/collegeIntel/types";
 import {
   loadShortlist,
   saveShortlist,
@@ -30,7 +31,13 @@ import {
 } from "@/components/ui/table";
 
 import CollegeDetailsDrawer from "../components/CollegeDetailsDrawer";
+import { AdvancedFilters, AdvancedFiltersState, defaultFilters } from "../components/colleges/AdvancedFilters";
 import { Scale } from "lucide-react";
+
+// Extended recommendation with college data for filtering
+interface ExtendedRecommendation extends CollegeRecommendation {
+  college?: College;
+}
 
 type SortKey = "collegeName" | "overallScore" | "fitBand";
 type SortDir = "asc" | "desc";
@@ -72,13 +79,14 @@ function nextStatus(s: "interested" | "applying" | "applied" | "not_now") {
 export default function CollegeMatches() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [items, setItems] = React.useState<CollegeRecommendation[]>([]);
+  const [items, setItems] = React.useState<ExtendedRecommendation[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   const [search, setSearch] = React.useState("");
   const [bandFilter, setBandFilter] = React.useState<string>("all");
   const [shortlistedOnly, setShortlistedOnly] = React.useState(false);
+  const [advancedFilters, setAdvancedFilters] = React.useState<AdvancedFiltersState>(defaultFilters);
 
   const [sortKey, setSortKey] = React.useState<SortKey>("overallScore");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
@@ -135,8 +143,8 @@ export default function CollegeMatches() {
         // Calculate matches
         const matches = calculateAllCollegeMatches(colleges, profile);
         
-        // Convert to recommendations
-        const recommendations: CollegeRecommendation[] = Array.from(matches.entries()).map(
+        // Convert to recommendations with college data
+        const recommendations: ExtendedRecommendation[] = Array.from(matches.entries()).map(
           ([collegeId, result]) => {
             const college = colleges.find((c) => c.id === collegeId);
             return {
@@ -150,7 +158,8 @@ export default function CollegeMatches() {
               estimatedCost: {
                 totalCostOfAttendance: college?.sticker_usd || undefined,
               },
-            } as CollegeRecommendation;
+              college, // Store full college data for filtering
+            } as ExtendedRecommendation;
           }
         );
 
@@ -175,6 +184,15 @@ export default function CollegeMatches() {
     saveShortlist(shortlist);
   }, [shortlist]);
 
+  // Extract available states from data
+  const availableStates = React.useMemo(() => {
+    const states = new Set<string>();
+    items.forEach((r) => {
+      if (r.college?.state) states.add(r.college.state);
+    });
+    return Array.from(states);
+  }, [items]);
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((r) => {
@@ -183,9 +201,47 @@ export default function CollegeMatches() {
       const matchesBand = bandFilter === "all" || r.fitBand === bandFilter;
       const isShortlisted = !!shortlist[r.collegeId];
       const matchesShortlisted = !shortlistedOnly || isShortlisted;
-      return matchesSearch && matchesBand && matchesShortlisted;
+
+      // Advanced filters
+      const college = r.college;
+      
+      // State filter
+      const matchesState = !advancedFilters.state || college?.state === advancedFilters.state;
+      
+      // Type filter
+      const matchesType = !advancedFilters.type || college?.type === advancedFilters.type;
+      
+      // Size filter
+      const matchesSize = !advancedFilters.size || college?.size === advancedFilters.size;
+      
+      // Tuition filter
+      const tuitionMax = advancedFilters.tuitionMax ? parseInt(advancedFilters.tuitionMax) : null;
+      const collegeTuition = college?.tuition_out_state || college?.tuition_in_state;
+      const matchesTuition = !tuitionMax || (collegeTuition && collegeTuition <= tuitionMax);
+      
+      // SAT range filter
+      const satMin = advancedFilters.satMin ? parseInt(advancedFilters.satMin) : null;
+      const satMax = advancedFilters.satMax ? parseInt(advancedFilters.satMax) : null;
+      const collegeSatHigh = college?.sat_range_high;
+      const collegeSatLow = college?.sat_range_low;
+      const matchesSat = 
+        (!satMin || (collegeSatHigh && collegeSatHigh >= satMin)) &&
+        (!satMax || (collegeSatLow && collegeSatLow <= satMax));
+      
+      // ACT range filter
+      const actMin = advancedFilters.actMin ? parseInt(advancedFilters.actMin) : null;
+      const actMax = advancedFilters.actMax ? parseInt(advancedFilters.actMax) : null;
+      const collegeActHigh = college?.act_range_high;
+      const collegeActLow = college?.act_range_low;
+      const matchesAct = 
+        (!actMin || (collegeActHigh && collegeActHigh >= actMin)) &&
+        (!actMax || (collegeActLow && collegeActLow <= actMax));
+
+      return matchesSearch && matchesBand && matchesShortlisted && 
+             matchesState && matchesType && matchesSize && 
+             matchesTuition && matchesSat && matchesAct;
     });
-  }, [items, search, bandFilter, shortlistedOnly, shortlist]);
+  }, [items, search, bandFilter, shortlistedOnly, shortlist, advancedFilters]);
 
   const sorted = React.useMemo(() => {
     const arr = [...filtered];
@@ -290,6 +346,15 @@ export default function CollegeMatches() {
                   Shortlisted
                 </Button>
               </div>
+            </div>
+
+            {/* Advanced Filters */}
+            <div className="mt-4">
+              <AdvancedFilters
+                filters={advancedFilters}
+                onFiltersChange={setAdvancedFilters}
+                availableStates={availableStates}
+              />
             </div>
           </CardHeader>
 
