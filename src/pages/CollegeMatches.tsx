@@ -460,7 +460,14 @@ export default function CollegeMatches() {
 
       {/* Floating compare button */}
       {compareSelection.size >= 2 && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setCompareSelection(new Set())}
+            className="shadow-lg"
+          >
+            Clear
+          </Button>
           <Button
             size="lg"
             onClick={goToCompare}
