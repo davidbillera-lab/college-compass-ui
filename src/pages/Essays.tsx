@@ -20,9 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { FileText, Plus, Clock, Tag, Pencil, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Plus, Clock, Pencil, Trash2, FolderOpen, Sparkles } from "lucide-react";
 import { mockEssays } from "@/lib/mockData";
 import { EssayCoach } from "@/components/subscription/EssayCoach";
+import { ApplicationMaterialsHub } from "@/components/application/ApplicationMaterialsHub";
 
 type EssayStatus = "draft" | "in-progress" | "complete";
 type EssayType = "personal_statement" | "scholarship" | "short_answer" | "supplemental";
@@ -135,76 +137,87 @@ export default function Essays() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Essays & Writing</h1>
+          <h1 className="text-3xl font-bold text-foreground">Essays & Application Materials</h1>
           <p className="text-muted-foreground mt-1">
-            Store and manage your essays, personal statements, and short answers.
+            Manage your essays, upload supporting materials, and get AI-powered guidance.
           </p>
         </div>
-
-        <Dialog open={newEssayOpen} onOpenChange={setNewEssayOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Essay
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Essay</DialogTitle>
-              <DialogDescription>Add a new essay or writing piece to your library.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
-                  value={newEssay.title}
-                  onChange={(e) => setNewEssay((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="e.g., Common App Personal Statement"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select
-                  value={newEssay.type}
-                  onValueChange={(v) => setNewEssay((p) => ({ ...p, type: v as EssayType }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(typeLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Prompt (optional)</Label>
-                <Textarea
-                  value={newEssay.prompt}
-                  onChange={(e) => setNewEssay((p) => ({ ...p, prompt: e.target.value }))}
-                  placeholder="Enter the essay prompt..."
-                  rows={3}
-                />
-              </div>
-              <Button onClick={handleCreateEssay} className="w-full">
-                Create Essay
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Essay Coach - Premium Feature */}
-        <div className="lg:col-span-3 xl:col-span-1">
-          <EssayCoach />
-        </div>
-        
-        {/* Essay List */}
-        <div className="lg:col-span-3 xl:col-span-2">
+      <Tabs defaultValue="essays" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="essays" className="flex items-center gap-1.5">
+            <FileText className="h-4 w-4" />
+            Essays
+          </TabsTrigger>
+          <TabsTrigger value="materials" className="flex items-center gap-1.5">
+            <FolderOpen className="h-4 w-4" />
+            Materials
+          </TabsTrigger>
+          <TabsTrigger value="coach" className="flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4" />
+            AI Coach
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="essays" className="mt-6">
+          <div className="flex justify-end mb-4">
+            <Dialog open={newEssayOpen} onOpenChange={setNewEssayOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Essay
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Essay</DialogTitle>
+                  <DialogDescription>Add a new essay or writing piece to your library.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input
+                      value={newEssay.title}
+                      onChange={(e) => setNewEssay((p) => ({ ...p, title: e.target.value }))}
+                      placeholder="e.g., Common App Personal Statement"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select
+                      value={newEssay.type}
+                      onValueChange={(v) => setNewEssay((p) => ({ ...p, type: v as EssayType }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(typeLabels).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prompt (optional)</Label>
+                    <Textarea
+                      value={newEssay.prompt}
+                      onChange={(e) => setNewEssay((p) => ({ ...p, prompt: e.target.value }))}
+                      placeholder="Enter the essay prompt..."
+                      rows={3}
+                    />
+                  </div>
+                  <Button onClick={handleCreateEssay} className="w-full">
+                    Create Essay
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
           <div className="grid lg:grid-cols-3 gap-6">
         {/* Essay List */}
         <div className="lg:col-span-1 space-y-3">
@@ -333,8 +346,18 @@ export default function Essays() {
           )}
         </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="materials" className="mt-6">
+          <ApplicationMaterialsHub />
+        </TabsContent>
+
+        <TabsContent value="coach" className="mt-6">
+          <div className="max-w-2xl">
+            <EssayCoach />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

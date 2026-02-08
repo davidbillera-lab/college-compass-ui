@@ -1,0 +1,330 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const logStep = (step: string, details?: unknown) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[APPLICATION-ADVISOR] ${step}${detailsStr}`);
+};
+
+// Premium product ID
+const PREMIUM_PRODUCT_ID = "prod_TwKv99TtmRbLfO";
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+
+  try {
+    logStep("Function started");
+
+    // Verify user is authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided");
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    const user = userData.user;
+    if (!user?.email) throw new Error("User not authenticated or email not available");
+    logStep("User authenticated", { userId: user.id });
+
+    // Verify premium subscription
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    
+    if (customers.data.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: "Premium subscription required",
+        code: "SUBSCRIPTION_REQUIRED" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    const customerId = customers.data[0].id;
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "active",
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: "Premium subscription required",
+        code: "SUBSCRIPTION_REQUIRED" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    const productId = subscriptions.data[0].items.data[0].price.product;
+    if (productId !== PREMIUM_PRODUCT_ID) {
+      return new Response(JSON.stringify({ 
+        error: "Premium subscription required",
+        code: "SUBSCRIPTION_REQUIRED" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    logStep("Premium subscription verified");
+
+    // Parse request body
+    const { action, materialId, content, materials, profileData } = await req.json();
+    
+    logStep("Processing request", { action });
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    let systemPrompt = "";
+    let userMessage = "";
+
+    switch (action) {
+      case "review_content":
+        // Review specific content (essay, description, etc.)
+        systemPrompt = `You are an expert college admissions advisor with deep experience helping students craft compelling applications. Provide specific, actionable feedback.
+
+Your feedback should be:
+- Encouraging yet honest
+- Specific with examples
+- Focused on authenticity and impact
+- Structured with clear sections
+
+Format your response with markdown headings:
+## Strengths
+- List what works well
+
+## Areas for Improvement
+- Specific suggestions with examples
+
+## Key Recommendations
+- Prioritized action items`;
+
+        userMessage = `Please review this application content and provide detailed feedback:\n\n${content}`;
+        break;
+
+      case "analyze_photo":
+        // Analyze uploaded photo/portfolio item
+        systemPrompt = `You are an expert college admissions advisor reviewing a student's portfolio or activity documentation. The student has uploaded an image with a description.
+
+Provide guidance on:
+1. How this content strengthens their application
+2. Suggestions for better presentation or documentation
+3. How to effectively describe this in applications
+4. Related achievements or activities to highlight`;
+
+        userMessage = `The student uploaded a photo/image with this context:\n\nTitle: ${content.title}\nDescription: ${content.description}\nCategory: ${content.category}\n\nProvide guidance on how to best use this in their college application.`;
+        break;
+
+      case "detect_gaps":
+        // Analyze all materials to find gaps
+        systemPrompt = `You are an expert college admissions consultant reviewing a student's complete application portfolio. Identify missing elements that could strengthen their application.
+
+Consider:
+- Common App requirements
+- Coalition App requirements  
+- Typical supplemental essay topics
+- Activity list completeness
+- Recommendation letter strategy
+- Portfolio requirements for arts/STEM
+- Athletic recruitment materials if applicable
+
+Format your response:
+## Critical Gaps
+Items that are essential and missing
+
+## Recommended Additions
+Items that would strengthen the application
+
+## Quick Wins
+Easy items to add that provide value
+
+## Next Steps
+Prioritized action plan`;
+
+        const materialsContext = materials?.map((m: {title: string; category: string; material_type: string; description?: string}) => 
+          `- ${m.title} (${m.category}, ${m.material_type}): ${m.description || 'No description'}`
+        ).join('\n') || 'No materials uploaded yet';
+
+        const profileContext = profileData ? `
+Student Profile:
+- Name: ${profileData.full_name || 'Not set'}
+- Graduation Year: ${profileData.grad_year || 'Not set'}
+- GPA: ${profileData.gpa_unweighted || 'Not set'}
+- Intended Majors: ${profileData.intended_majors?.join(', ') || 'Not set'}
+- Test Scores: SAT ${profileData.sat_score || 'N/A'}, ACT ${profileData.act_score || 'N/A'}
+- Region: ${profileData.region || 'Not set'}
+` : '';
+
+        userMessage = `Review this student's current application materials and identify gaps:\n\n${profileContext}\n\nCurrent Materials:\n${materialsContext}`;
+        break;
+
+      case "highlight_strengths":
+        // Find and highlight strongest content
+        systemPrompt = `You are an expert college admissions strategist. Analyze the student's materials and identify their strongest assets for college applications.
+
+Consider:
+- Unique experiences or perspectives
+- Demonstrated impact and leadership
+- Authentic voice and storytelling
+- Academic excellence indicators
+- Extracurricular depth vs breadth
+- Special talents or achievements
+
+Format your response:
+## Top Strengths
+Your most compelling application elements
+
+## Unique Differentiators
+What sets you apart from other applicants
+
+## Story Themes
+Narrative threads connecting your experiences
+
+## Strategic Recommendations
+How to leverage these strengths`;
+
+        const strengthMaterials = materials?.map((m: {title: string; category: string; content_text?: string; description?: string}) => 
+          `- ${m.title} (${m.category}): ${m.content_text || m.description || 'No content'}`
+        ).join('\n') || 'No materials to analyze';
+
+        const strengthProfile = profileData ? `
+Student Profile:
+- Intended Majors: ${profileData.intended_majors?.join(', ') || 'Not set'}
+- Proud Moment: ${profileData.proud_moment || 'Not shared'}
+- Challenge: ${profileData.challenge || 'Not shared'}
+- Impact: ${profileData.impact || 'Not shared'}
+- Awards: ${profileData.awards?.join(', ') || 'None listed'}
+- Leadership: ${profileData.leadership_roles?.join(', ') || 'None listed'}
+` : '';
+
+        userMessage = `Analyze this student's materials and identify their strongest assets:\n\n${strengthProfile}\n\nMaterials:\n${strengthMaterials}`;
+        break;
+
+      case "comprehensive_review":
+        // Full portfolio review combining all analyses
+        systemPrompt = `You are a senior college admissions consultant providing a comprehensive portfolio review. Analyze all aspects of the student's application readiness.
+
+Provide a holistic assessment covering:
+1. Overall application strength
+2. Key strengths to emphasize
+3. Critical gaps to address
+4. Content quality assessment
+5. Strategic recommendations
+6. Timeline and priorities
+
+Be specific, actionable, and encouraging while being honest about areas needing work.`;
+
+        const compMaterials = materials?.map((m: {title: string; category: string; material_type: string; content_text?: string; description?: string}) => 
+          `- ${m.title} (${m.category}, ${m.material_type}): ${m.content_text?.substring(0, 200) || m.description || 'No content'}`
+        ).join('\n') || 'No materials';
+
+        const compProfile = profileData ? JSON.stringify(profileData, null, 2) : 'No profile data';
+
+        userMessage = `Provide a comprehensive application portfolio review:\n\nProfile:\n${compProfile}\n\nMaterials:\n${compMaterials}`;
+        break;
+
+      default:
+        throw new Error(`Unknown action: ${action}`);
+    }
+
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        stream: false,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "AI rate limit exceeded, please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI usage limit reached." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errorText);
+      throw new Error("AI service temporarily unavailable");
+    }
+
+    const aiData = await aiResponse.json();
+    const feedback = aiData.choices?.[0]?.message?.content;
+
+    if (!feedback) {
+      throw new Error("No response from AI service");
+    }
+
+    logStep("AI analysis completed", { action });
+
+    // If materialId provided, update the AI analysis in the database
+    if (materialId) {
+      const { error: updateError } = await supabaseClient
+        .from('application_materials')
+        .update({
+          ai_analysis: { 
+            feedback,
+            action,
+            analyzed_at: new Date().toISOString()
+          },
+          ai_analyzed_at: new Date().toISOString()
+        })
+        .eq('id', materialId)
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error("Failed to save AI analysis:", updateError);
+      }
+    }
+
+    return new Response(JSON.stringify({ 
+      feedback,
+      action 
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
+});

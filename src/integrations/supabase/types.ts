@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_materials: {
+        Row: {
+          ai_analysis: Json | null
+          ai_analyzed_at: string | null
+          category: string
+          content_text: string | null
+          created_at: string
+          description: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          material_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          ai_analyzed_at?: string | null
+          category: string
+          content_text?: string | null
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          material_type: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          ai_analyzed_at?: string | null
+          category?: string
+          content_text?: string | null
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          material_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       college_list_items: {
         Row: {
           added_at: string
