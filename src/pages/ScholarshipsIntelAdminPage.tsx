@@ -17,15 +17,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import { 
   Loader2, Upload, Archive, RotateCcw, Plus, Pencil, 
   GraduationCap, DollarSign, MapPin, Trophy, Users, Briefcase,
-  Search, X, Save, CheckCircle, FileSpreadsheet
+  Search, X, Save, CheckCircle, FileSpreadsheet, Sparkles, Brain, Wand2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   isUserAdmin, triggerIngestion, fetchScholarships, 
-  toggleScholarshipStatus, updateScholarshipCriteria 
+  toggleScholarshipStatus, updateScholarshipCriteria,
+  parseScholarshipCriteria, batchParseScholarships
 } from '@/lib/scholarshipsIntel/api';
 import { Scholarship, NormalizedCriteria } from '@/lib/scholarshipsIntel/types';
 import { CsvImportDialog } from '@/components/scholarships/CsvImportDialog';
@@ -523,6 +525,8 @@ export default function ScholarshipsIntelAdminPage() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [editingScholarship, setEditingScholarship] = React.useState<Scholarship | null>(null);
   const [csvImportOpen, setCsvImportOpen] = React.useState(false);
+  const [aiParsing, setAiParsing] = React.useState(false);
+  const [aiParseProgress, setAiParseProgress] = React.useState({ current: 0, total: 0, name: '' });
 
   const refreshScholarships = async () => {
     const schols = await fetchScholarships();
@@ -581,6 +585,78 @@ export default function ScholarshipsIntelAdminPage() {
     ));
   };
 
+  const handleBatchAiParse = async () => {
+    // Find scholarships with raw_eligibility_text but no/empty normalized_criteria
+    const toParse = scholarships.filter(s => 
+      s.raw_eligibility_text && 
+      (!s.normalized_criteria || Object.keys(s.normalized_criteria).length === 0)
+    );
+
+    if (toParse.length === 0) {
+      toast.info('No scholarships need parsing. All scholarships either have criteria or no eligibility text.');
+      return;
+    }
+
+    setAiParsing(true);
+    setAiParseProgress({ current: 0, total: toParse.length, name: '' });
+
+    try {
+      const result = await batchParseScholarships(
+        toParse.map(s => ({
+          id: s.id,
+          name: s.name,
+          raw_eligibility_text: s.raw_eligibility_text || '',
+        })),
+        (completed, total, current) => {
+          setAiParseProgress({ current: completed, total, name: current });
+        }
+      );
+
+      toast.success(`AI parsing complete: ${result.success} succeeded, ${result.failed} failed`);
+      
+      if (result.errors.length > 0) {
+        console.error('Parsing errors:', result.errors);
+      }
+
+      // Refresh scholarships
+      await refreshScholarships();
+    } catch (err) {
+      console.error('Batch parse error:', err);
+      toast.error('Batch parsing failed');
+    } finally {
+      setAiParsing(false);
+    }
+  };
+
+  const handleSingleAiParse = async (scholarship: Scholarship) => {
+    if (!scholarship.raw_eligibility_text) {
+      toast.error('No eligibility text to parse');
+      return;
+    }
+
+    const toastId = toast.loading(`Parsing "${scholarship.name}"...`);
+
+    try {
+      const result = await parseScholarshipCriteria(
+        scholarship.id,
+        scholarship.raw_eligibility_text,
+        scholarship.name
+      );
+
+      if (result.success && result.criteria) {
+        setScholarships(prev => prev.map(s => 
+          s.id === scholarship.id ? { ...s, normalized_criteria: result.criteria } : s
+        ));
+        toast.success(`Parsed criteria for "${scholarship.name}"`, { id: toastId });
+      } else {
+        toast.error(result.error || 'Parsing failed', { id: toastId });
+      }
+    } catch (err) {
+      console.error('Parse error:', err);
+      toast.error('Failed to parse criteria', { id: toastId });
+    }
+  };
+
   const filteredScholarships = scholarships.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.provider?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -589,6 +665,12 @@ export default function ScholarshipsIntelAdminPage() {
   // Count scholarships with criteria configured
   const configuredCount = scholarships.filter(s => 
     s.normalized_criteria && Object.keys(s.normalized_criteria).length > 0
+  ).length;
+
+  // Count scholarships that can be AI-parsed
+  const parsableCount = scholarships.filter(s => 
+    s.raw_eligibility_text && 
+    (!s.normalized_criteria || Object.keys(s.normalized_criteria).length === 0)
   ).length;
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -641,6 +723,64 @@ export default function ScholarshipsIntelAdminPage() {
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Import Criteria from CSV
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              AI-Powered Criteria Parsing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Automatically extract structured eligibility criteria from raw eligibility text using AI.
+              This analyzes the <code className="bg-muted px-1 rounded">raw_eligibility_text</code> field and populates <code className="bg-muted px-1 rounded">normalized_criteria</code>.
+            </p>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  {parsableCount} scholarships ready to parse
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Scholarships with eligibility text but no configured criteria
+                </p>
+              </div>
+              <Button 
+                onClick={handleBatchAiParse} 
+                disabled={aiParsing || parsableCount === 0}
+                className="min-w-[180px]"
+              >
+                {aiParsing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Parsing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Parse All ({parsableCount})
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {aiParsing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[300px]">{aiParseProgress.name}</span>
+                  <span className="text-muted-foreground">
+                    {aiParseProgress.current} / {aiParseProgress.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={aiParseProgress.total > 0 ? (aiParseProgress.current / aiParseProgress.total) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -716,6 +856,16 @@ export default function ScholarshipsIntelAdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {s.raw_eligibility_text && !hasCriteria && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={() => handleSingleAiParse(s)}
+                          title="Parse with AI"
+                        >
+                          <Wand2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button 
                         size="sm" 
                         variant="outline"

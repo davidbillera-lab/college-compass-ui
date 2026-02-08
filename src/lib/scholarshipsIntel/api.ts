@@ -304,6 +304,68 @@ export async function updateScholarshipCriteria(
   }
 }
 
+// Parse scholarship eligibility text with AI (admin only)
+export async function parseScholarshipCriteria(
+  scholarshipId: string,
+  rawEligibilityText: string,
+  scholarshipName?: string
+): Promise<{ success: boolean; criteria?: NormalizedCriteria; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('parse-scholarship-criteria', {
+    body: {
+      scholarship_id: scholarshipId,
+      raw_eligibility_text: rawEligibilityText,
+      scholarship_name: scholarshipName,
+    },
+  });
+
+  if (error) {
+    console.error('AI parsing error:', error);
+    return { success: false, error: error.message };
+  }
+
+  if (data?.error) {
+    return { success: false, error: data.error };
+  }
+
+  return { success: true, criteria: data.criteria as NormalizedCriteria };
+}
+
+// Batch parse multiple scholarships with AI (admin only)
+export async function batchParseScholarships(
+  scholarships: Array<{ id: string; name: string; raw_eligibility_text: string }>,
+  onProgress?: (completed: number, total: number, current: string) => void
+): Promise<{ success: number; failed: number; errors: string[] }> {
+  let success = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < scholarships.length; i++) {
+    const s = scholarships[i];
+    onProgress?.(i, scholarships.length, s.name);
+
+    try {
+      const result = await parseScholarshipCriteria(s.id, s.raw_eligibility_text, s.name);
+      if (result.success) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`${s.name}: ${result.error}`);
+      }
+    } catch (err) {
+      failed++;
+      errors.push(`${s.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+
+    // Add a small delay between requests to avoid rate limiting
+    if (i < scholarships.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  onProgress?.(scholarships.length, scholarships.length, 'Complete');
+  return { success, failed, errors };
+}
+
 // Recalculate all matches for a user
 export async function recalculateMatches(
   userId: string
