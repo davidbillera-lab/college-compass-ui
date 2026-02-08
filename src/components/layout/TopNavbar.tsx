@@ -88,13 +88,13 @@ export function TopNavbar({ onMenuClick }: TopNavbarProps) {
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
+                  <button className="p-1 rounded-full hover:bg-muted transition-colors">
                     <Avatar className="h-9 w-9 border-2 border-primary/20">
                       <AvatarFallback className="bg-primary-light text-primary font-semibold text-sm">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
