@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollegeLibraryDrawer } from "@/components/CollegeLibraryDrawer";
+import { AIMatchScoreBadge } from "@/components/scholarships/AIMatchScoreBadge";
+import { useAIMatchScores } from "@/hooks/useAIMatchScores";
 import {
   Search,
   MapPin,
@@ -21,6 +23,7 @@ import {
   Library,
   Loader2,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 const US_REGIONS = ["All", "Northeast", "Southeast", "Midwest", "Southwest", "West"];
@@ -35,6 +38,8 @@ export default function CollegeLibraryPage() {
   const [stateFilter, setStateFilter] = useState("All");
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const { scores, loading: aiLoading, calculateCollegeScores, getScore } = useAIMatchScores();
 
   const { data: colleges = [], isLoading } = useQuery({
     queryKey: ["colleges-library"],
@@ -97,7 +102,19 @@ export default function CollegeLibraryPage() {
     setStateFilter("All");
   };
 
+  // Function to calculate AI scores for visible colleges
+  const calculateVisibleScores = () => {
+    if (filteredColleges.length === 0) return;
+    const ids = filteredColleges.map((c) => c.id);
+    calculateCollegeScores(ids);
+  };
+
   const hasActiveFilters =
+    search !== "" ||
+    regionFilter !== "All" ||
+    typeFilter !== "All" ||
+    sizeFilter !== "All" ||
+    stateFilter !== "All";
     search !== "" ||
     regionFilter !== "All" ||
     typeFilter !== "All" ||
@@ -234,9 +251,29 @@ export default function CollegeLibraryPage() {
               )}
             </div>
 
-            {/* Results count */}
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredColleges.length.toLocaleString()} of {colleges.length.toLocaleString()} institutions
+            {/* Results count and AI scoring */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Showing {filteredColleges.length.toLocaleString()} of {colleges.length.toLocaleString()} institutions
+                </span>
+                {!isLoading && filteredColleges.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={calculateVisibleScores}
+                    disabled={aiLoading}
+                    className="gap-1"
+                  >
+                    {aiLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    )}
+                    {aiLoading ? "Calculating..." : "Get AI Admission Odds"}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -291,6 +328,16 @@ export default function CollegeLibraryPage() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* AI Match Score */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <AIMatchScoreBadge
+                    score={getScore(college.id)}
+                    loading={aiLoading}
+                    onCalculate={() => calculateCollegeScores([college.id])}
+                    compact
+                  />
                 </div>
 
                 {/* Badges */}
