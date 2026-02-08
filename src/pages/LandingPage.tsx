@@ -95,9 +95,9 @@ const comparisonData = [
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col">
+    <main className="flex flex-col" role="main">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32">
+      <section className="relative overflow-hidden py-20 md:py-32" aria-labelledby="hero-heading">
         {/* Background */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background" />
@@ -115,7 +115,7 @@ export default function LandingPage() {
               Now Accepting Students
             </Badge>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
+            <h1 id="hero-heading" className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
               Stop searching.<br/>
               <span className="text-primary">Start winning scholarships.</span>
             </h1>
@@ -173,7 +173,7 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Bar */}
-      <section className="border-y border-border bg-card py-8">
+      <section className="border-y border-border bg-card py-8" aria-label="Platform statistics">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, i) => (
@@ -189,10 +189,10 @@ export default function LandingPage() {
       </section>
 
       {/* Comparison Section */}
-      <section className="py-20 md:py-28 bg-muted/30">
+      <section className="py-20 md:py-28 bg-muted/30" aria-labelledby="comparison-heading">
         <div className="container px-4 md:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 id="comparison-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Why Students Switch to Campus Climb Kit
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -229,10 +229,10 @@ export default function LandingPage() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 md:py-28">
+      <section className="py-20 md:py-28" aria-labelledby="features-heading">
         <div className="container px-4 md:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 id="features-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Everything included, no hidden fees
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -261,10 +261,10 @@ export default function LandingPage() {
       </section>
 
       {/* How it Works */}
-      <section className="py-20 md:py-28 bg-muted/30">
+      <section className="py-20 md:py-28 bg-muted/30" aria-labelledby="how-it-works-heading">
         <div className="container px-4 md:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 id="how-it-works-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Get started in minutes
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -291,10 +291,10 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 md:py-28">
+      <section className="py-20 md:py-28" aria-labelledby="testimonials-heading">
         <div className="container px-4 md:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 id="testimonials-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Real students, real results
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -331,10 +331,10 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing CTA */}
-      <section className="py-20 md:py-28 bg-gradient-to-r from-primary/5 to-primary/10">
+      <section className="py-20 md:py-28 bg-gradient-to-r from-primary/5 to-primary/10" aria-labelledby="pricing-heading">
         <div className="container px-4 md:px-6">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
+            <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-6">
               Ready to level up your applications?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -397,10 +397,10 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 md:py-28">
+      <section className="py-20 md:py-28" aria-labelledby="faq-heading">
         <div className="container px-4 md:px-6">
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-12 text-center">
+            <h2 id="faq-heading" className="text-3xl md:text-4xl font-bold text-foreground mb-12 text-center">
               Common questions answered
             </h2>
 
@@ -461,6 +461,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
