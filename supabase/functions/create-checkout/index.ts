@@ -12,8 +12,10 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Premium subscription price ID
+// Premium subscription price ID ($19.99/month)
 const PREMIUM_PRICE_ID = "price_1SySFGHqg2vAFif7Tr7U09V8";
+// One-time onboarding fee ($199)
+const ONBOARDING_PRICE_ID = "price_1SySarHqg2vAFif7T3Tksmom";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -46,23 +48,77 @@ serve(async (req) => {
     // Check if customer already exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId: string | undefined;
+    let hasOnboarded = false;
+    
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       logStep("Existing customer found", { customerId });
+      
+      // Check if they've already paid the onboarding fee
+      const payments = await stripe.paymentIntents.list({
+        customer: customerId,
+        limit: 100,
+      });
+      
+      // Look for successful payment of the onboarding fee
+      for (const payment of payments.data) {
+        if (payment.status === 'succeeded' && payment.metadata?.onboarding_fee === 'true') {
+          hasOnboarded = true;
+          break;
+        }
+      }
+      
+      // Also check checkout sessions for the onboarding price
+      const sessions = await stripe.checkout.sessions.list({
+        customer: customerId,
+        limit: 100,
+      });
+      
+      for (const session of sessions.data) {
+        if (session.payment_status === 'paid' && session.metadata?.includes_onboarding === 'true') {
+          hasOnboarded = true;
+          break;
+        }
+      }
     }
 
     const origin = req.headers.get("origin") || "http://localhost:5173";
     
+    // Build line items - include onboarding fee only for new customers
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+    
+    // Always include the subscription
+    lineItems.push({
+      price: PREMIUM_PRICE_ID,
+      quantity: 1,
+    });
+    
+    // Add onboarding fee for new customers who haven't paid it
+    if (!hasOnboarded) {
+      logStep("Including onboarding fee for new customer");
+    }
+    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: PREMIUM_PRICE_ID,
-          quantity: 1,
-        },
-      ],
+      line_items: hasOnboarded 
+        ? lineItems 
+        : [
+            ...lineItems,
+            {
+              price: ONBOARDING_PRICE_ID,
+              quantity: 1,
+            },
+          ],
       mode: "subscription",
+      subscription_data: hasOnboarded ? undefined : {
+        metadata: {
+          onboarding_paid: 'true',
+        },
+      },
+      metadata: {
+        includes_onboarding: hasOnboarded ? 'false' : 'true',
+      },
       success_url: `${origin}/dashboard?checkout=success`,
       cancel_url: `${origin}/dashboard?checkout=cancelled`,
     });
