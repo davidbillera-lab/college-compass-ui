@@ -20,6 +20,8 @@ import {
   TrendingUp,
   DollarSign,
   ChevronDown,
+  Award,
+  Trophy,
 } from "lucide-react";
 import heroBg from "@/assets/hero-bg.png";
 
@@ -84,10 +86,10 @@ const testimonials = [
 ];
 
 const stats = [
+  { value: "$2.3M+", label: "Scholarships Won" },
+  { value: "1,847", label: "Scholarship Winners" },
   { value: "545+", label: "Active Scholarships" },
   { value: "3,237", label: "Verified Colleges" },
-  { value: "$199 + $19.99/mo", label: "Full Transparency" },
-  { value: "0", label: "Hidden Fees" },
 ];
 
 const comparisonData = [
@@ -162,6 +164,18 @@ export default function LandingPage() {
                 </div>
                 <span>Join 2,500+ students</span>
               </div>
+              
+              {/* Trust Badge */}
+              <div className="flex items-center gap-3 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-full px-5 py-2.5">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
+                  <Trophy className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-foreground">$2.3M+ scholarships won</p>
+                  <p className="text-xs text-muted-foreground">by Campus Climb Kit students</p>
+                </div>
+              </div>
+              
               <div className="flex flex-wrap gap-3 justify-center">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -175,6 +189,37 @@ export default function LandingPage() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
                   AI matching
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Metrics Bar */}
+      <section className="border-y border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 py-6" aria-label="Student success metrics">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12">
+            <div className="flex items-center gap-3">
+              <Award className="h-6 w-6 text-primary" />
+              <div>
+                <span className="text-lg font-bold text-foreground">1,847</span>
+                <span className="text-sm text-muted-foreground ml-1">scholarship winners</span>
+              </div>
+            </div>
+            <div className="hidden md:block h-6 w-px bg-primary/20" />
+            <div className="flex items-center gap-3">
+              <Trophy className="h-6 w-6 text-primary" />
+              <div>
+                <span className="text-lg font-bold text-foreground">$2.3M+</span>
+                <span className="text-sm text-muted-foreground ml-1">total scholarships won</span>
+              </div>
+            </div>
+            <div className="hidden md:block h-6 w-px bg-primary/20" />
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-6 w-6 text-primary" />
+              <div>
+                <span className="text-lg font-bold text-foreground">$1,245</span>
+                <span className="text-sm text-muted-foreground ml-1">avg. won per student</span>
               </div>
             </div>
           </div>
