@@ -374,6 +374,45 @@ export type Database = {
         }
         Relationships: []
       }
+      monitoring_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          details: string | null
+          id: string
+          metadata: Json | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          title?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           academic_narrative: string | null
