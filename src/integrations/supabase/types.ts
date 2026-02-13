@@ -803,6 +803,45 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_webhook_events: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_id: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          stripe_event_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          stripe_event_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          stripe_event_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null
