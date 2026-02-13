@@ -25,6 +25,7 @@ import CollegeListsPage from "./pages/CollegeListsPage";
 import SharedListPage from "./pages/SharedListPage";
 import LandingPage from "./pages/LandingPage";
 import ParentDashboard from "./pages/ParentDashboard";
+import AdminMonitoringPage from "./pages/AdminMonitoringPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -84,6 +85,7 @@ export default function App() {
                   <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
                   <Route path="/essays" element={<Essays />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
                 </Route>
               </Route>
               
