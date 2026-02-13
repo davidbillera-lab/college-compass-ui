@@ -1,0 +1,180 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+
+  if (!stripeKey || !webhookSecret) {
+    logStep("ERROR", { message: "Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET" });
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+
+  const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+  try {
+    const body = await req.text();
+    const signature = req.headers.get("stripe-signature");
+
+    if (!signature) {
+      logStep("ERROR", { message: "Missing stripe-signature header" });
+      return new Response(JSON.stringify({ error: "Missing signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify webhook signature
+    let event: Stripe.Event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logStep("Signature verification failed", { message: msg });
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    logStep("Event received", { type: event.type, id: event.id });
+
+    // Extract common fields
+    const eventObj = event.data.object as any;
+    const customerId = eventObj.customer || null;
+    const subscriptionId = eventObj.id || eventObj.subscription || null;
+
+    // Resolve customer email
+    let customerEmail: string | null = null;
+    if (customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && !customer.deleted) {
+          customerEmail = (customer as Stripe.Customer).email;
+        }
+      } catch {
+        logStep("Could not retrieve customer email", { customerId });
+      }
+    }
+
+    // Store event in audit table
+    const { error: insertError } = await supabase
+      .from("stripe_webhook_events")
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        customer_email: customerEmail,
+        customer_id: customerId,
+        subscription_id: subscriptionId,
+        payload: event.data.object,
+        processed: true,
+      });
+
+    if (insertError) {
+      logStep("Failed to store event", { error: insertError.message });
+    }
+
+    // Handle specific event types
+    switch (event.type) {
+      case "customer.subscription.updated": {
+        const sub = eventObj as Stripe.Subscription;
+        logStep("Subscription updated", {
+          subscriptionId: sub.id,
+          status: sub.status,
+          customer: customerId,
+        });
+        // No monitoring alert for normal updates
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const sub = eventObj as Stripe.Subscription;
+        logStep("Subscription cancelled", {
+          subscriptionId: sub.id,
+          customer: customerId,
+          email: customerEmail,
+        });
+
+        // Create a warning-level monitoring alert
+        await supabase.from("monitoring_alerts").insert({
+          alert_type: "subscription_cancelled",
+          severity: "warning",
+          title: `Subscription cancelled: ${customerEmail || customerId}`,
+          details: `Subscription ${sub.id} was cancelled for customer ${customerEmail || customerId}.`,
+          metadata: {
+            subscription_id: sub.id,
+            customer_id: customerId,
+            customer_email: customerEmail,
+            cancelled_at: new Date().toISOString(),
+          },
+        });
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = eventObj as Stripe.Invoice;
+        logStep("Payment failed", {
+          invoiceId: invoice.id,
+          customer: customerId,
+          email: customerEmail,
+          amountDue: invoice.amount_due,
+        });
+
+        // Create a critical monitoring alert
+        await supabase.from("monitoring_alerts").insert({
+          alert_type: "payment_failed",
+          severity: "critical",
+          title: `Payment failed: ${customerEmail || customerId}`,
+          details: `Invoice ${invoice.id} payment failed. Amount due: $${((invoice.amount_due || 0) / 100).toFixed(2)}. Customer: ${customerEmail || customerId}.`,
+          metadata: {
+            invoice_id: invoice.id,
+            customer_id: customerId,
+            customer_email: customerEmail,
+            amount_due: invoice.amount_due,
+            attempt_count: invoice.attempt_count,
+          },
+        });
+        break;
+      }
+
+      default:
+        logStep("Unhandled event type", { type: event.type });
+    }
+
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
