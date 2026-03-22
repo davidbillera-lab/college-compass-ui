@@ -29,10 +29,10 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
 
-    if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!openaiApiKey) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     // Get auth token from request
@@ -88,7 +88,7 @@ serve(async (req) => {
 
       // Calculate scores for each scholarship using AI
       for (const scholarship of scholarships || []) {
-        const score = await calculateScholarshipScore(profile, scholarship, lovableApiKey);
+        const score = await calculateScholarshipScore(profile, scholarship, openaiApiKey);
         results[scholarship.id] = score;
         
         // Store in database for caching
@@ -112,7 +112,7 @@ serve(async (req) => {
 
       // Calculate scores for each college using AI
       for (const college of colleges || []) {
-        const score = await calculateCollegeScore(profile, college, lovableApiKey);
+        const score = await calculateCollegeScore(profile, college, openaiApiKey);
         results[college.id] = score;
         
         // Determine bucket based on score
@@ -213,14 +213,14 @@ SCHOLARSHIP:
 
 Analyze eligibility and provide a match score.`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -343,14 +343,14 @@ COLLEGE:
 
 Analyze admission chances and fit.`;
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

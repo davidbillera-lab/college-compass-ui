@@ -1,0 +1,2468 @@
+From 3dd3dccf67d2c92fa258f4070c8cb91ed43cdfb4 Mon Sep 17 00:00:00 2001
+From: David Billera <david@davidbillera-lab.com>
+Date: Sun, 22 Mar 2026 10:12:42 -0400
+Subject: [PATCH] =?UTF-8?q?feat:=20wire=20real=20data=20engine=20=E2=80=94?=
+ =?UTF-8?q?=20remove=203D=20scope=20creep,=20connect=20Dashboard=20to=20Su?=
+ =?UTF-8?q?pabase,=20fix=20matching=20AI=20to=20use=20OpenAI?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Remove all 3D components (AssemblyViewer, HighFidelityViewer, etc.) — not part of college app vision
+- Remove three.js / @react-three dependencies from package.json
+- Rewrite Dashboard.tsx to query real college_matches, scholarship_matches, and tasks from Supabase
+- Fix AppContext.tsx to calculate profileStrength from actual profile fields instead of mockUser
+- Fix calculate-match-scores edge function: replace broken LOVABLE_API_KEY/Lovable gateway with OPENAI_API_KEY and OpenAI gpt-4o-mini
+- Add .env to .gitignore to prevent accidental secret commits
+---
+ .gitignore                                    |   5 +
+ package.json                                  |   6 +-
+ src/components/3d/AssemblyViewer.tsx          | 866 ------------------
+ src/components/3d/HighFidelityScene.ts        | 351 -------
+ src/components/3d/HighFidelityViewer.tsx      | 184 ----
+ src/components/3d/buildExport.ts              | 109 ---
+ src/components/3d/useHighFidelityScene.ts     |  79 --
+ src/contexts/AppContext.tsx                   |  34 +-
+ src/pages/AssemblyDemo.tsx                    |  31 -
+ src/pages/Dashboard.tsx                       | 453 ++++++---
+ src/pages/HighFidelityDemo.tsx                |  31 -
+ .../functions/calculate-match-scores/index.ts |  18 +-
+ 12 files changed, 361 insertions(+), 1806 deletions(-)
+ delete mode 100644 src/components/3d/AssemblyViewer.tsx
+ delete mode 100644 src/components/3d/HighFidelityScene.ts
+ delete mode 100644 src/components/3d/HighFidelityViewer.tsx
+ delete mode 100644 src/components/3d/buildExport.ts
+ delete mode 100644 src/components/3d/useHighFidelityScene.ts
+ delete mode 100644 src/pages/AssemblyDemo.tsx
+ delete mode 100644 src/pages/HighFidelityDemo.tsx
+
+diff --git a/.gitignore b/.gitignore
+index a547bf3..7e259d5 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -22,3 +22,8 @@ dist-ssr
+ *.njsproj
+ *.sln
+ *.sw?
++
++# Environment variables (never commit)
++.env
++.env.local
++.env.production
+diff --git a/package.json b/package.json
+index 4855393..f952be9 100644
+--- a/package.json
++++ b/package.json
+@@ -40,11 +40,8 @@
+     "@radix-ui/react-toggle": "^1.1.9",
+     "@radix-ui/react-toggle-group": "^1.1.10",
+     "@radix-ui/react-tooltip": "^1.2.7",
+-    "@react-three/drei": "^9.122.0",
+-    "@react-three/fiber": "^8.18.0",
+     "@supabase/supabase-js": "^2.89.0",
+     "@tanstack/react-query": "^5.83.0",
+-    "@types/three": "^0.160.0",
+     "@types/uuid": "^10.0.0",
+     "class-variance-authority": "^0.7.1",
+     "clsx": "^2.1.1",
+@@ -68,7 +65,6 @@
+     "sonner": "^1.7.4",
+     "tailwind-merge": "^2.6.0",
+     "tailwindcss-animate": "^1.0.7",
+-    "three": "^0.160.1",
+     "uuid": "^13.0.0",
+     "vaul": "^0.9.9",
+     "zod": "^3.25.76"
+@@ -92,4 +88,4 @@
+     "typescript-eslint": "^8.38.0",
+     "vite": "^5.4.19"
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/src/components/3d/AssemblyViewer.tsx b/src/components/3d/AssemblyViewer.tsx
+deleted file mode 100644
+index a92c97d..0000000
+--- a/src/components/3d/AssemblyViewer.tsx
++++ /dev/null
+@@ -1,866 +0,0 @@
+-import React, { useRef, useState, useCallback, useMemo } from "react";
+-import { Canvas, useFrame } from "@react-three/fiber";
+-import { OrbitControls, Text } from "@react-three/drei";
+-import * as THREE from "three";
+-import { Button } from "@/components/ui/button";
+-import { Slider } from "@/components/ui/slider";
+-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+-import { Badge } from "@/components/ui/badge";
+-import { toast } from "sonner";
+-import {
+-  Select,
+-  SelectContent,
+-  SelectItem,
+-  SelectTrigger,
+-  SelectValue,
+-} from "@/components/ui/select";
+-import { Download } from "lucide-react";
+-import { generateBuildExport } from "./buildExport";
+-
+-// Skin definitions
+-type SkinType = "default" | "neon_fantasy" | "worn_steel" | "camo_custom" | "gold_plated" | "holographic";
+-
+-interface SkinSettings {
+-  color?: string;
+-  emissive?: string;
+-  emissiveIntensity?: number;
+-  roughness?: number;
+-  metalness?: number;
+-  opacity?: number;
+-  transparent?: boolean;
+-}
+-
+-const SKINS: Record<SkinType, { label: string; settings: SkinSettings }> = {
+-  default: {
+-    label: "Default",
+-    settings: { roughness: 0.5, metalness: 0.3 },
+-  },
+-  neon_fantasy: {
+-    label: "Neon Fantasy",
+-    settings: { 
+-      color: "#00ffff", 
+-      emissive: "#00ffff", 
+-      emissiveIntensity: 2,
+-      roughness: 0.2,
+-      metalness: 0.8,
+-    },
+-  },
+-  worn_steel: {
+-    label: "Worn Steel",
+-    settings: { 
+-      color: "#8b8b8b",
+-      roughness: 0.8, 
+-      metalness: 1.0,
+-      emissive: "#000000",
+-      emissiveIntensity: 0,
+-    },
+-  },
+-  camo_custom: {
+-    label: "Tactical Camo",
+-    settings: { 
+-      color: "#4a5d23",
+-      roughness: 0.9, 
+-      metalness: 0.1,
+-    },
+-  },
+-  gold_plated: {
+-    label: "Gold Plated",
+-    settings: {
+-      color: "#ffd700",
+-      emissive: "#ff8c00",
+-      emissiveIntensity: 0.3,
+-      roughness: 0.1,
+-      metalness: 1.0,
+-    },
+-  },
+-  holographic: {
+-    label: "Holographic",
+-    settings: {
+-      color: "#ff00ff",
+-      emissive: "#8800ff",
+-      emissiveIntensity: 1.5,
+-      roughness: 0.0,
+-      metalness: 0.9,
+-      opacity: 0.85,
+-      transparent: true,
+-    },
+-  },
+-};
+-
+-// State Machine for Disassembly
+-interface DisassemblyState {
+-  isMagazineRemoved: boolean;
+-  isTakedownPinPushed: boolean;
+-  isUpperPivoted: boolean;
+-  isBCGRemoved: boolean;
+-  isChargingHandleRemoved: boolean;
+-}
+-
+-const initialDisassemblyState: DisassemblyState = {
+-  isMagazineRemoved: false,
+-  isTakedownPinPushed: false,
+-  isUpperPivoted: false,
+-  isBCGRemoved: false,
+-  isChargingHandleRemoved: false,
+-};
+-
+-interface PartAnimation {
+-  targetPosition?: THREE.Vector3;
+-  targetRotation?: THREE.Euler;
+-  duration: number;
+-}
+-
+-interface PartData {
+-  id: string;
+-  name: string;
+-  position: [number, number, number];
+-  color: string;
+-  geometry: "box" | "cylinder" | "sphere";
+-  size: [number, number, number];
+-  parentId: string | null;
+-  mass: number; // Mass in kg
+-  category?: "Barrel" | "Stock" | "Receiver" | "Component";
+-  length?: number; // Length in inches (for barrels)
+-  canInteract?: (state: DisassemblyState) => boolean;
+-  onInteract?: (state: DisassemblyState) => Partial<DisassemblyState> | null;
+-  errorMessage?: (state: DisassemblyState) => string | null;
+-  getAnimation?: (state: DisassemblyState) => PartAnimation | null;
+-}
+-
+-// NFA Compliance Status
+-type NFAStatus = "Standard Configuration" | "NFA REGULATED: Short Barreled Rifle (SBR)" | "NFA REGULATED: Any Other Weapon (AOW)";
+-
+-interface ComplianceResult {
+-  status: NFAStatus;
+-  isNFA: boolean;
+-  details: string;
+-}
+-
+-const checkCompliance = (parts: PartData[]): ComplianceResult => {
+-  const barrel = parts.find(p => p.category === "Barrel");
+-  const stock = parts.find(p => p.category === "Stock");
+-  
+-  // 2026 NFA Rule: Barrel < 16" with a Stock = SBR (requires $0 Tax Stamp registration)
+-  if (barrel?.length && barrel.length < 16 && stock) {
+-    return {
+-      status: "NFA REGULATED: Short Barreled Rifle (SBR)",
+-      isNFA: true,
+-      details: `Barrel length ${barrel.length}" < 16" with stock attached. Requires ATF Form 4 registration ($0 tax under OBBBA 2026).`,
+-    };
+-  }
+-  
+-  // Additional check: Barrel < 16" without stock could be pistol or AOW
+-  if (barrel?.length && barrel.length < 16 && !stock) {
+-    return {
+-      status: "Standard Configuration",
+-      isNFA: false,
+-      details: `Pistol configuration - ${barrel.length}" barrel without stock. No NFA registration required.`,
+-    };
+-  }
+-  
+-  return {
+-    status: "Standard Configuration",
+-    isNFA: false,
+-    details: "Standard rifle configuration. No NFA restrictions apply.",
+-  };
+-};
+-
+-interface PhysicsData {
+-  totalMass: number;
+-  centerOfGravity: THREE.Vector3;
+-}
+-
+-interface PartProps {
+-  part: PartData;
+-  explodeFactor: number;
+-  disassemblyState: DisassemblyState;
+-  isSelected: boolean;
+-  onClick: () => void;
+-  skin: SkinType;
+-  globalSkin: SkinType;
+-}
+-
+-const Part: React.FC<PartProps> = ({
+-  part,
+-  explodeFactor,
+-  disassemblyState,
+-  isSelected,
+-  onClick,
+-  skin,
+-  globalSkin,
+-}) => {
+-  const meshRef = useRef<THREE.Mesh>(null);
+-  const originalPosition = useRef(new THREE.Vector3(...part.position));
+-  const animationProgress = useRef(0);
+-  const hueOffset = useRef(Math.random() * Math.PI * 2);
+-
+-  const animation = part.getAnimation?.(disassemblyState);
+-  const canInteract = part.canInteract?.(disassemblyState) ?? true;
+-
+-  // Determine which skin to use (part-specific or global)
+-  const activeSkin = skin !== "default" ? skin : globalSkin;
+-  const skinSettings = SKINS[activeSkin].settings;
+-
+-  useFrame((state, delta) => {
+-    if (!meshRef.current) return;
+-
+-    // Handle state-based animations
+-    if (animation) {
+-      if (animationProgress.current < 1) {
+-        animationProgress.current = Math.min(1, animationProgress.current + delta * 2);
+-
+-        if (animation.targetPosition) {
+-          meshRef.current.position.lerp(animation.targetPosition, 0.1);
+-        }
+-        if (animation.targetRotation) {
+-          meshRef.current.rotation.x = THREE.MathUtils.lerp(
+-            meshRef.current.rotation.x,
+-            animation.targetRotation.x,
+-            0.1
+-          );
+-          meshRef.current.rotation.y = THREE.MathUtils.lerp(
+-            meshRef.current.rotation.y,
+-            animation.targetRotation.y,
+-            0.1
+-          );
+-          meshRef.current.rotation.z = THREE.MathUtils.lerp(
+-            meshRef.current.rotation.z,
+-            animation.targetRotation.z,
+-            0.1
+-          );
+-        }
+-      }
+-    } else {
+-      if (animationProgress.current > 0 && !animation) {
+-        animationProgress.current = 0;
+-      }
+-
+-      const direction = originalPosition.current.clone().normalize();
+-      const explodedPos = originalPosition.current
+-        .clone()
+-        .add(direction.multiplyScalar(explodeFactor));
+-      meshRef.current.position.lerp(explodedPos, 0.1);
+-    }
+-
+-    // Animated effects for special skins
+-    if (activeSkin === "holographic" && meshRef.current.material) {
+-      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+-      const hue = (state.clock.elapsedTime * 0.5 + hueOffset.current) % 1;
+-      mat.color.setHSL(hue, 0.8, 0.5);
+-      mat.emissive.setHSL(hue, 1, 0.3);
+-    }
+-
+-    if (activeSkin === "neon_fantasy" && meshRef.current.material) {
+-      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+-      const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.5 + 1.5;
+-      mat.emissiveIntensity = pulse;
+-    }
+-  });
+-
+-  const renderGeometry = () => {
+-    switch (part.geometry) {
+-      case "cylinder":
+-        return <cylinderGeometry args={[part.size[0], part.size[0], part.size[1], 32]} />;
+-      case "sphere":
+-        return <sphereGeometry args={[part.size[0], 32, 32]} />;
+-      default:
+-        return <boxGeometry args={part.size} />;
+-    }
+-  };
+-
+-  // Compute material color
+-  const baseColor = skinSettings.color || part.color;
+-  const emissiveColor = isSelected 
+-    ? "#ffffff" 
+-    : canInteract 
+-      ? "#00ff00" 
+-      : (skinSettings.emissive || "#000000");
+-  const emissiveIntensity = isSelected 
+-    ? 0.4 
+-    : canInteract 
+-      ? 0.15 
+-      : (skinSettings.emissiveIntensity || 0);
+-
+-  return (
+-    <mesh
+-      ref={meshRef}
+-      position={part.position}
+-      onClick={(e) => {
+-        e.stopPropagation();
+-        onClick();
+-      }}
+-    >
+-      {renderGeometry()}
+-      <meshStandardMaterial
+-        color={baseColor}
+-        emissive={emissiveColor}
+-        emissiveIntensity={emissiveIntensity}
+-        roughness={skinSettings.roughness ?? 0.5}
+-        metalness={skinSettings.metalness ?? 0.3}
+-        transparent={skinSettings.transparent || !canInteract}
+-        opacity={canInteract ? (skinSettings.opacity ?? 1) : 0.6}
+-      />
+-      <Text
+-        position={[0, part.size[1] / 2 + 0.4, 0]}
+-        fontSize={0.25}
+-        color="white"
+-        anchorX="center"
+-        anchorY="bottom"
+-        outlineWidth={0.02}
+-        outlineColor="#000000"
+-      >
+-        {part.name}
+-      </Text>
+-    </mesh>
+-  );
+-};
+-
+-// Center of Gravity Marker component
+-const CoGMarker: React.FC<{ position: THREE.Vector3 }> = ({ position }) => {
+-  const meshRef = useRef<THREE.Mesh>(null);
+-
+-  useFrame((state) => {
+-    if (meshRef.current) {
+-      meshRef.current.position.lerp(position, 0.1);
+-      // Pulsing animation
+-      const scale = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.15;
+-      meshRef.current.scale.setScalar(scale);
+-    }
+-  });
+-
+-  return (
+-    <group>
+-      <mesh ref={meshRef} position={position.toArray()}>
+-        <sphereGeometry args={[0.12, 32, 32]} />
+-        <meshStandardMaterial
+-          color="#ff4444"
+-          emissive="#ff0000"
+-          emissiveIntensity={1.5}
+-          transparent
+-          opacity={0.9}
+-        />
+-      </mesh>
+-      <Text
+-        position={[position.x, position.y + 0.35, position.z]}
+-        fontSize={0.18}
+-        color="#ff4444"
+-        anchorX="center"
+-        anchorY="bottom"
+-        outlineWidth={0.015}
+-        outlineColor="#000000"
+-      >
+-        CoG
+-      </Text>
+-    </group>
+-  );
+-};
+-
+-const Scene: React.FC<{
+-  explodeFactor: number;
+-  parts: PartData[];
+-  disassemblyState: DisassemblyState;
+-  selectedPart: string | null;
+-  onSelectPart: (id: string) => void;
+-  partSkins: Record<string, SkinType>;
+-  globalSkin: SkinType;
+-  showCoG: boolean;
+-  cogPosition: THREE.Vector3;
+-}> = ({ explodeFactor, parts, disassemblyState, selectedPart, onSelectPart, partSkins, globalSkin, showCoG, cogPosition }) => {
+-  return (
+-    <>
+-      <ambientLight intensity={0.4} />
+-      <directionalLight position={[5, 5, 5]} intensity={1} />
+-      <directionalLight position={[-5, -5, -5]} intensity={0.3} />
+-      <pointLight position={[0, 3, 0]} intensity={0.5} color="#ffffff" />
+-
+-      {parts.map((part) => (
+-        <Part
+-          key={part.id}
+-          part={part}
+-          explodeFactor={explodeFactor}
+-          disassemblyState={disassemblyState}
+-          isSelected={selectedPart === part.id}
+-          onClick={() => onSelectPart(part.id)}
+-          skin={partSkins[part.id] || "default"}
+-          globalSkin={globalSkin}
+-        />
+-      ))}
+-
+-      {showCoG && <CoGMarker position={cogPosition} />}
+-
+-      <OrbitControls enableDamping dampingFactor={0.05} />
+-      <gridHelper args={[10, 10, "#444", "#222"]} />
+-    </>
+-  );
+-};
+-
+-// Define parts with state machine logic and mass data
+-const createParts = (): PartData[] => [
+-  {
+-    id: "lower_receiver",
+-    name: "Lower Receiver",
+-    position: [0, 0.4, 0],
+-    color: "#3d3d3d",
+-    geometry: "box",
+-    size: [2.5, 0.8, 0.6],
+-    parentId: null,
+-    mass: 0.36, // kg
+-    category: "Receiver",
+-    canInteract: () => false,
+-  },
+-  {
+-    id: "magazine",
+-    name: "Magazine",
+-    position: [0.3, -0.3, 0],
+-    color: "#4a4a4a",
+-    geometry: "box",
+-    size: [0.4, 1.2, 0.5],
+-    parentId: "lower_receiver",
+-    mass: 0.45, // kg (loaded)
+-    category: "Component",
+-    canInteract: (state) => !state.isMagazineRemoved,
+-    onInteract: () => ({ isMagazineRemoved: true }),
+-    getAnimation: (state) =>
+-      state.isMagazineRemoved
+-        ? { targetPosition: new THREE.Vector3(0.3, -2.5, 0), duration: 0.5 }
+-        : null,
+-  },
+-  {
+-    id: "rear_takedown_pin",
+-    name: "Takedown Pin",
+-    position: [-0.8, 0.5, 0.35],
+-    color: "#666666",
+-    geometry: "cylinder",
+-    size: [0.08, 0.15, 0.08],
+-    parentId: "lower_receiver",
+-    mass: 0.008, // kg
+-    category: "Component",
+-    canInteract: (state) => state.isMagazineRemoved && !state.isTakedownPinPushed,
+-    onInteract: (state) => (state.isMagazineRemoved ? { isTakedownPinPushed: true } : null),
+-    errorMessage: (state) =>
+-      !state.isMagazineRemoved ? "Remove Magazine first before pushing takedown pin." : null,
+-    getAnimation: (state) =>
+-      state.isTakedownPinPushed
+-        ? { targetPosition: new THREE.Vector3(-0.8, 0.5, 0.55), duration: 0.3 }
+-        : null,
+-  },
+-  {
+-    id: "upper_receiver",
+-    name: "Upper Receiver",
+-    position: [0, 1.1, 0],
+-    color: "#2d2d2d",
+-    geometry: "box",
+-    size: [2.8, 0.6, 0.55],
+-    parentId: "lower_receiver",
+-    mass: 0.45, // kg
+-    category: "Receiver",
+-    canInteract: (state) => state.isTakedownPinPushed && !state.isUpperPivoted,
+-    onInteract: (state) => (state.isTakedownPinPushed ? { isUpperPivoted: true } : null),
+-    errorMessage: (state) =>
+-      !state.isTakedownPinPushed ? "Push Takedown Pin first to pivot upper receiver." : null,
+-    getAnimation: (state) =>
+-      state.isUpperPivoted
+-        ? {
+-            targetPosition: new THREE.Vector3(0.8, 1.5, 0),
+-            targetRotation: new THREE.Euler(0, 0, Math.PI / 4),
+-            duration: 0.5,
+-          }
+-        : null,
+-  },
+-  {
+-    id: "barrel",
+-    name: "Barrel (16\")",
+-    position: [1.8, 1.1, 0],
+-    color: "#1f1f1f",
+-    geometry: "cylinder",
+-    size: [0.12, 2.2, 0.12],
+-    parentId: "upper_receiver",
+-    mass: 0.68, // kg
+-    category: "Barrel",
+-    length: 16, // inches - standard rifle length
+-    canInteract: () => false,
+-  },
+-  {
+-    id: "stock",
+-    name: "Buttstock",
+-    position: [-1.6, 0.5, 0],
+-    color: "#2a2a2a",
+-    geometry: "box",
+-    size: [1.0, 0.5, 0.4],
+-    parentId: "lower_receiver",
+-    mass: 0.25, // kg
+-    category: "Stock",
+-    canInteract: () => false,
+-  },
+-  {
+-    id: "bcg",
+-    name: "BCG",
+-    position: [0, 1.1, 0],
+-    color: "#1a1a1a",
+-    geometry: "cylinder",
+-    size: [0.18, 1.8, 0.18],
+-    parentId: "upper_receiver",
+-    mass: 0.31, // kg
+-    category: "Component",
+-    canInteract: (state) => state.isUpperPivoted && !state.isBCGRemoved,
+-    onInteract: (state) => (state.isUpperPivoted ? { isBCGRemoved: true } : null),
+-    errorMessage: (state) =>
+-      !state.isUpperPivoted ? "Pivot Upper Receiver first to access the BCG." : null,
+-    getAnimation: (state) =>
+-      state.isBCGRemoved
+-        ? { targetPosition: new THREE.Vector3(2.5, 1.1, 0), duration: 0.5 }
+-        : null,
+-  },
+-  {
+-    id: "charging_handle",
+-    name: "Charging Handle",
+-    position: [-1.2, 1.3, 0],
+-    color: "#555555",
+-    geometry: "box",
+-    size: [0.4, 0.15, 0.3],
+-    parentId: "upper_receiver",
+-    mass: 0.05, // kg
+-    category: "Component",
+-    canInteract: (state) => state.isBCGRemoved && !state.isChargingHandleRemoved,
+-    onInteract: (state) => (state.isBCGRemoved ? { isChargingHandleRemoved: true } : null),
+-    errorMessage: (state) =>
+-      !state.isBCGRemoved ? "Remove BCG first before removing Charging Handle." : null,
+-    getAnimation: (state) =>
+-      state.isChargingHandleRemoved
+-        ? { targetPosition: new THREE.Vector3(-2.5, 1.3, 0), duration: 0.5 }
+-        : null,
+-  },
+-];
+-
+-// Calculate physics data for assembled parts
+-const calculatePhysics = (parts: PartData[], disassemblyState: DisassemblyState): PhysicsData => {
+-  let totalMass = 0;
+-  const cogVector = new THREE.Vector3(0, 0, 0);
+-
+-  // Determine which parts are still assembled
+-  const assembledParts = parts.filter((part) => {
+-    if (part.id === "magazine" && disassemblyState.isMagazineRemoved) return false;
+-    if (part.id === "bcg" && disassemblyState.isBCGRemoved) return false;
+-    if (part.id === "charging_handle" && disassemblyState.isChargingHandleRemoved) return false;
+-    return true;
+-  });
+-
+-  assembledParts.forEach((part) => {
+-    const mass = part.mass;
+-    totalMass += mass;
+-
+-    // Get part position and add weighted contribution to CoG
+-    const partPos = new THREE.Vector3(...part.position);
+-    cogVector.add(partPos.multiplyScalar(mass));
+-  });
+-
+-  // Calculate final center of gravity
+-  if (totalMass > 0) {
+-    cogVector.divideScalar(totalMass);
+-  }
+-
+-  return { totalMass, centerOfGravity: cogVector };
+-};
+-
+-const getStepStatus = (state: DisassemblyState) => {
+-  const steps = [
+-    { done: state.isMagazineRemoved, label: "Remove Magazine" },
+-    { done: state.isTakedownPinPushed, label: "Push Takedown Pin" },
+-    { done: state.isUpperPivoted, label: "Pivot Upper Receiver" },
+-    { done: state.isBCGRemoved, label: "Remove BCG" },
+-    { done: state.isChargingHandleRemoved, label: "Remove Charging Handle" },
+-  ];
+-
+-  const completedSteps = steps.filter((s) => s.done).length;
+-  const nextStep = steps.find((s) => !s.done);
+-
+-  return {
+-    step: completedSteps,
+-    total: steps.length,
+-    label: nextStep?.label || "Field Strip Complete!",
+-  };
+-};
+-
+-export const AssemblyViewer: React.FC = () => {
+-  const [explodeFactor, setExplodeFactor] = useState(0);
+-  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+-  const [disassemblyState, setDisassemblyState] = useState<DisassemblyState>(initialDisassemblyState);
+-  const [globalSkin, setGlobalSkin] = useState<SkinType>("default");
+-  const [partSkins, setPartSkins] = useState<Record<string, SkinType>>({});
+-  const [showCoG, setShowCoG] = useState(true);
+-  const [isExporting, setIsExporting] = useState(false);
+-  const canvasContainerRef = useRef<HTMLDivElement>(null);
+-
+-  const parts = useMemo(() => createParts(), []);
+-  const stepStatus = getStepStatus(disassemblyState);
+-  const physicsData = useMemo(() => calculatePhysics(parts, disassemblyState), [parts, disassemblyState]);
+-  const complianceData = useMemo(() => checkCompliance(parts), [parts]);
+-
+-  const handlePartClick = useCallback(
+-    (partId: string) => {
+-      setSelectedPart(partId);
+-      const part = parts.find((p) => p.id === partId);
+-      if (!part) return;
+-
+-      const errorMsg = part.errorMessage?.(disassemblyState);
+-      if (errorMsg) {
+-        toast.error(errorMsg);
+-        return;
+-      }
+-
+-      if (!part.canInteract?.(disassemblyState)) {
+-        return;
+-      }
+-
+-      const stateUpdate = part.onInteract?.(disassemblyState);
+-      if (stateUpdate) {
+-        setDisassemblyState((prev) => ({ ...prev, ...stateUpdate }));
+-        toast.success(`${part.name} action completed`);
+-      }
+-    },
+-    [parts, disassemblyState]
+-  );
+-
+-  const handleReset = useCallback(() => {
+-    setDisassemblyState(initialDisassemblyState);
+-    setExplodeFactor(0);
+-    setShowCoG(true);
+-    toast.info("Assembly reset to initial state");
+-  }, []);
+-
+-  const handleExplode = useCallback(() => {
+-    setExplodeFactor((prev) => (prev > 0 ? 0 : 2));
+-  }, []);
+-
+-  const applySkinToPart = useCallback((partId: string, skin: SkinType) => {
+-    setPartSkins((prev) => ({ ...prev, [partId]: skin }));
+-    toast.success(`Applied ${SKINS[skin].label} skin to part`);
+-  }, []);
+-
+-  const applyGlobalSkin = useCallback((skin: SkinType) => {
+-    setGlobalSkin(skin);
+-    setPartSkins({}); // Clear individual skins
+-    toast.success(`Applied ${SKINS[skin].label} skin to all parts`);
+-  }, []);
+-
+-  const handleExportPDF = useCallback(async () => {
+-    setIsExporting(true);
+-    try {
+-      const cogDesc = `X: ${physicsData.centerOfGravity.x.toFixed(2)}, Y: ${physicsData.centerOfGravity.y.toFixed(2)}, Z: ${physicsData.centerOfGravity.z.toFixed(2)}`;
+-      
+-      const buildData = {
+-        name: "AR15_Build",
+-        totalMass: physicsData.totalMass,
+-        cogDescription: cogDesc,
+-        nfaStatus: complianceData.status,
+-        nfaDetails: complianceData.details,
+-        parts: parts.map((p) => ({
+-          category: p.category || "Component",
+-          name: p.name,
+-          mass: p.mass,
+-          nfaStatus: p.category === "Barrel" && p.length ? `${p.length}" barrel` : "N/A",
+-        })),
+-      };
+-
+-      await generateBuildExport(buildData, canvasContainerRef.current);
+-      toast.success("PDF exported successfully!");
+-    } catch (error) {
+-      console.error("Export failed:", error);
+-      toast.error("Failed to export PDF");
+-    } finally {
+-      setIsExporting(false);
+-    }
+-  }, [parts, physicsData, complianceData]);
+-
+-  const isComplete = stepStatus.step === stepStatus.total;
+-  const selectedPartData = parts.find((p) => p.id === selectedPart);
+-
+-  return (
+-    <Card className="w-full max-w-4xl mx-auto animate-fade-in">
+-      <CardHeader>
+-        <CardTitle className="flex items-center justify-between">
+-          <span>Field Strip Trainer</span>
+-          <div className="flex items-center gap-2">
+-            <Badge variant={isComplete ? "default" : "secondary"}>
+-              Step {stepStatus.step}/{stepStatus.total}
+-            </Badge>
+-            {isComplete && (
+-              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500">
+-                Complete!
+-              </Badge>
+-            )}
+-          </div>
+-        </CardTitle>
+-      </CardHeader>
+-      <CardContent className="space-y-4">
+-        {/* NFA Compliance Banner */}
+-        <div className={`rounded-lg p-3 border ${complianceData.isNFA ? "bg-red-500/10 border-red-500/50" : "bg-green-500/10 border-green-500/50"}`}>
+-          <div className="flex items-center justify-between flex-wrap gap-2">
+-            <div className="flex items-center gap-2">
+-              <Badge variant={complianceData.isNFA ? "destructive" : "default"} className={!complianceData.isNFA ? "bg-green-600" : ""}>
+-                {complianceData.isNFA ? "⚠️ NFA ITEM" : "✓ NON-NFA"}
+-              </Badge>
+-              <span className="font-medium text-sm">{complianceData.status}</span>
+-            </div>
+-            <span className="text-xs text-muted-foreground">{complianceData.details}</span>
+-          </div>
+-        </div>
+-
+-        {/* Physics Stats & Current instruction */}
+-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+-          <div className="rounded-lg bg-muted/50 p-3 border">
+-            <div className="text-sm font-medium text-muted-foreground mb-1">Next Step:</div>
+-            <div className="text-lg font-semibold">{stepStatus.label}</div>
+-          </div>
+-          <div className="rounded-lg bg-muted/50 p-3 border">
+-            <div className="text-sm font-medium text-muted-foreground mb-1">Build Physics:</div>
+-            <div className="flex items-center gap-4">
+-              <div>
+-                <span className="text-lg font-semibold">{physicsData.totalMass.toFixed(3)}</span>
+-                <span className="text-sm text-muted-foreground ml-1">kg</span>
+-              </div>
+-              <div className="text-sm text-muted-foreground">
+-                CoG: ({physicsData.centerOfGravity.x.toFixed(2)}, {physicsData.centerOfGravity.y.toFixed(2)}, {physicsData.centerOfGravity.z.toFixed(2)})
+-              </div>
+-            </div>
+-          </div>
+-        </div>
+-
+-        {/* 3D Viewer */}
+-        <div 
+-          ref={canvasContainerRef}
+-          className="h-[400px] w-full rounded-lg overflow-hidden border bg-gradient-to-b from-gray-900 to-gray-800"
+-        >
+-          <Canvas camera={{ position: [4, 3, 4], fov: 50 }}>
+-            <Scene
+-              explodeFactor={explodeFactor}
+-              parts={parts}
+-              disassemblyState={disassemblyState}
+-              selectedPart={selectedPart}
+-              onSelectPart={handlePartClick}
+-              partSkins={partSkins}
+-              globalSkin={globalSkin}
+-              showCoG={showCoG}
+-              cogPosition={physicsData.centerOfGravity}
+-            />
+-          </Canvas>
+-        </div>
+-
+-        {/* Controls */}
+-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+-          <div className="space-y-3">
+-            <h4 className="text-sm font-medium">Explode View</h4>
+-            <div className="flex items-center gap-4">
+-              <Slider
+-                value={[explodeFactor]}
+-                onValueChange={([val]) => setExplodeFactor(val)}
+-                max={4}
+-                step={0.1}
+-                className="flex-1"
+-              />
+-              <Button variant="outline" size="sm" onClick={handleExplode}>
+-                {explodeFactor > 0 ? "Reset" : "Explode"}
+-              </Button>
+-            </div>
+-          </div>
+-
+-          <div className="space-y-3">
+-            <h4 className="text-sm font-medium">Global Skin</h4>
+-            <Select value={globalSkin} onValueChange={(v) => applyGlobalSkin(v as SkinType)}>
+-              <SelectTrigger>
+-                <SelectValue />
+-              </SelectTrigger>
+-              <SelectContent>
+-                {Object.entries(SKINS).map(([key, { label }]) => (
+-                  <SelectItem key={key} value={key}>
+-                    {label}
+-                  </SelectItem>
+-                ))}
+-              </SelectContent>
+-            </Select>
+-          </div>
+-
+-          <div className="space-y-3">
+-            <h4 className="text-sm font-medium">Actions</h4>
+-            <div className="flex gap-2 flex-wrap">
+-              <Button variant="destructive" size="sm" onClick={handleReset}>
+-                Reset All
+-              </Button>
+-              <Button
+-                variant={showCoG ? "default" : "outline"}
+-                size="sm"
+-                onClick={() => setShowCoG(!showCoG)}
+-              >
+-                {showCoG ? "Hide CoG" : "Show CoG"}
+-              </Button>
+-              <Button
+-                variant="outline"
+-                size="sm"
+-                onClick={handleExportPDF}
+-                disabled={isExporting}
+-              >
+-                <Download className="h-4 w-4 mr-1" />
+-                {isExporting ? "Exporting..." : "Export PDF"}
+-              </Button>
+-            </div>
+-          </div>
+-        </div>
+-
+-        {/* Selected part skin */}
+-        {selectedPartData && (
+-          <div className="rounded-lg border p-3 bg-muted/30 animate-fade-in">
+-            <div className="flex items-center justify-between gap-4 flex-wrap">
+-              <div>
+-                <div className="text-sm text-muted-foreground">Selected Part</div>
+-                <div className="font-medium">{selectedPartData.name}</div>
+-              </div>
+-              <div className="flex items-center gap-2">
+-                <span className="text-sm text-muted-foreground">Apply Skin:</span>
+-                <Select
+-                  value={partSkins[selectedPart!] || "default"}
+-                  onValueChange={(v) => applySkinToPart(selectedPart!, v as SkinType)}
+-                >
+-                  <SelectTrigger className="w-[160px]">
+-                    <SelectValue />
+-                  </SelectTrigger>
+-                  <SelectContent>
+-                    {Object.entries(SKINS).map(([key, { label }]) => (
+-                      <SelectItem key={key} value={key}>
+-                        {label}
+-                      </SelectItem>
+-                    ))}
+-                  </SelectContent>
+-                </Select>
+-              </div>
+-            </div>
+-          </div>
+-        )}
+-
+-        {/* Progress indicators */}
+-        <div className="flex flex-wrap gap-2">
+-          <Badge variant={disassemblyState.isMagazineRemoved ? "default" : "outline"}>
+-            1. Magazine
+-          </Badge>
+-          <Badge variant={disassemblyState.isTakedownPinPushed ? "default" : "outline"}>
+-            2. Takedown Pin
+-          </Badge>
+-          <Badge variant={disassemblyState.isUpperPivoted ? "default" : "outline"}>
+-            3. Upper Receiver
+-          </Badge>
+-          <Badge variant={disassemblyState.isBCGRemoved ? "default" : "outline"}>
+-            4. BCG
+-          </Badge>
+-          <Badge variant={disassemblyState.isChargingHandleRemoved ? "default" : "outline"}>
+-            5. Charging Handle
+-          </Badge>
+-        </div>
+-
+-        <div className="text-xs text-muted-foreground">
+-          <strong>Controls:</strong> Click + drag to rotate · Scroll to zoom · Click parts to interact · Green glow = can interact
+-        </div>
+-      </CardContent>
+-    </Card>
+-  );
+-};
+-
+-export default AssemblyViewer;
+diff --git a/src/components/3d/HighFidelityScene.ts b/src/components/3d/HighFidelityScene.ts
+deleted file mode 100644
+index 6f59ae3..0000000
+--- a/src/components/3d/HighFidelityScene.ts
++++ /dev/null
+@@ -1,351 +0,0 @@
+-import * as THREE from 'three';
+-import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+-
+-export interface HighFidelitySceneContext {
+-  scene: THREE.Scene;
+-  camera: THREE.PerspectiveCamera;
+-  renderer: THREE.WebGLRenderer;
+-  labelRenderer: CSS2DRenderer;
+-  controls: OrbitControls;
+-  loadFirearmPart: (url: string, partName: string) => Promise<THREE.Object3D>;
+-  loadHDREnvironment: (url: string) => Promise<void>;
+-  snapToSocket: (newPart: THREE.Object3D, basePart: THREE.Object3D, socketName: string) => boolean;
+-  animate: () => void;
+-  dispose: () => void;
+-  resize: () => void;
+-}
+-
+-export interface HighFidelitySceneOptions {
+-  container: HTMLElement;
+-  width?: number;
+-  height?: number;
+-  backgroundColor?: number;
+-  enableHDR?: boolean;
+-  hdrUrl?: string;
+-}
+-
+-/**
+- * Initializes a high-fidelity Three.js scene with:
+- * - ACES Filmic tone mapping for cinematic metal look
+- * - CSS2D label renderer for floating part names
+- * - HDR environment maps for realistic metallic reflections
+- * - GLTF model loading support
+- * - OrbitControls for interaction
+- */
+-export const initHighFidelityScene = (options: HighFidelitySceneOptions): HighFidelitySceneContext => {
+-  const { 
+-    container, 
+-    width = container.clientWidth || window.innerWidth, 
+-    height = container.clientHeight || window.innerHeight,
+-    backgroundColor = 0x1a1a2e,
+-    enableHDR = true,
+-    hdrUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr'
+-  } = options;
+-
+-  // 1. Setup Scene
+-  const scene = new THREE.Scene();
+-  scene.background = new THREE.Color(backgroundColor);
+-
+-  // 2. Setup Camera
+-  const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+-  camera.position.set(4, 3, 4);
+-  camera.lookAt(0, 0, 0);
+-
+-  // 3. Setup WebGL Renderer with cinematic tone mapping
+-  const renderer = new THREE.WebGLRenderer({ 
+-    antialias: true,
+-    alpha: true,
+-    powerPreference: 'high-performance'
+-  });
+-  renderer.setSize(width, height);
+-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+-  renderer.toneMapping = THREE.ACESFilmicToneMapping; // Cinematic metal look
+-  renderer.toneMappingExposure = 1.0;
+-  renderer.shadowMap.enabled = true;
+-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+-  container.appendChild(renderer.domElement);
+-
+-  // 4. Setup CSS2D Label Renderer for floating part names
+-  const labelRenderer = new CSS2DRenderer();
+-  labelRenderer.setSize(width, height);
+-  labelRenderer.domElement.style.position = 'absolute';
+-  labelRenderer.domElement.style.top = '0px';
+-  labelRenderer.domElement.style.left = '0px';
+-  labelRenderer.domElement.style.pointerEvents = 'none';
+-  container.appendChild(labelRenderer.domElement);
+-
+-  // 5. Add default lighting
+-  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+-  scene.add(ambientLight);
+-
+-  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+-  directionalLight.position.set(5, 5, 5);
+-  directionalLight.castShadow = true;
+-  directionalLight.shadow.mapSize.width = 2048;
+-  directionalLight.shadow.mapSize.height = 2048;
+-  scene.add(directionalLight);
+-
+-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+-  fillLight.position.set(-5, -5, -5);
+-  scene.add(fillLight);
+-
+-  // 6. Setup OrbitControls
+-  const controls = new OrbitControls(camera, labelRenderer.domElement);
+-  controls.enableDamping = true;
+-  controls.dampingFactor = 0.05;
+-  controls.minDistance = 2;
+-  controls.maxDistance = 20;
+-
+-  // 7. Load HDR Environment Map for realistic metallic reflections
+-  const loadHDREnvironment = async (url: string): Promise<void> => {
+-    return new Promise((resolve, reject) => {
+-      const rgbeLoader = new RGBELoader();
+-      rgbeLoader.load(
+-        url,
+-        (texture) => {
+-          texture.mapping = THREE.EquirectangularReflectionMapping;
+-          scene.environment = texture;
+-          resolve();
+-        },
+-        undefined,
+-        (error) => {
+-          console.error('Failed to load HDR environment:', error);
+-          reject(error);
+-        }
+-      );
+-    });
+-  };
+-
+-  // Auto-load HDR if enabled
+-  if (enableHDR && hdrUrl) {
+-    loadHDREnvironment(hdrUrl).catch(console.error);
+-  }
+-
+-  // 8. GLTF Loader for real firearm parts
+-  const gltfLoader = new GLTFLoader();
+-  
+-  const loadFirearmPart = async (url: string, partName: string): Promise<THREE.Object3D> => {
+-    return new Promise((resolve, reject) => {
+-      gltfLoader.load(
+-        url,
+-        (gltf: GLTF) => {
+-          const model = gltf.scene;
+-          
+-          // Create a styled 3D label that follows the part
+-          const labelDiv = document.createElement('div');
+-          labelDiv.className = 'part-label';
+-          labelDiv.textContent = partName;
+-          labelDiv.style.cssText = `
+-            color: white;
+-            font-family: system-ui, -apple-system, sans-serif;
+-            font-size: 12px;
+-            font-weight: 500;
+-            padding: 4px 8px;
+-            background: rgba(0, 0, 0, 0.7);
+-            border-radius: 4px;
+-            border: 1px solid rgba(255, 255, 255, 0.2);
+-            backdrop-filter: blur(4px);
+-            white-space: nowrap;
+-            pointer-events: none;
+-          `;
+-          
+-          const label = new CSS2DObject(labelDiv);
+-          
+-          // Position label above the model's bounding box
+-          const box = new THREE.Box3().setFromObject(model);
+-          const center = box.getCenter(new THREE.Vector3());
+-          const size = box.getSize(new THREE.Vector3());
+-          label.position.set(0, size.y / 2 + 0.3, 0);
+-          
+-          model.add(label);
+-          model.userData.partName = partName;
+-          model.userData.label = label;
+-          
+-          // Enable shadows on all meshes
+-          model.traverse((child) => {
+-            if (child instanceof THREE.Mesh) {
+-              child.castShadow = true;
+-              child.receiveShadow = true;
+-            }
+-          });
+-          
+-          scene.add(model);
+-          resolve(model);
+-        },
+-        undefined,
+-        (error) => {
+-          console.error(`Failed to load GLTF model for ${partName}:`, error);
+-          reject(error);
+-        }
+-      );
+-    });
+-  };
+-
+-  // 9. Socket/Plug Snapping System
+-  /**
+-   * Snaps a new part's plug to a base part's socket
+-   * Socket naming convention: 'Socket_<type>' (e.g., 'Socket_Grip', 'Socket_Stock')
+-   * Plug naming convention: 'Plug' or 'Plug_<type>'
+-   */
+-  const snapToSocket = (
+-    newPart: THREE.Object3D, 
+-    basePart: THREE.Object3D, 
+-    socketName: string
+-  ): boolean => {
+-    // 1. Find the specific socket on the base (e.g., 'Socket_Grip')
+-    const socket = basePart.getObjectByName(socketName);
+-    // 2. Find the plug on the new part (e.g., 'Plug')
+-    const plug = newPart.getObjectByName('Plug') || 
+-                 newPart.getObjectByName(`Plug_${socketName.replace('Socket_', '')}`);
+-
+-    if (socket && plug) {
+-      // 3. Calculate the offset so the Plug sits exactly on the Socket
+-      const worldPosition = new THREE.Vector3();
+-      socket.getWorldPosition(worldPosition);
+-      
+-      // Account for plug offset within the new part
+-      const plugLocalPosition = new THREE.Vector3();
+-      plug.getWorldPosition(plugLocalPosition);
+-      const plugOffset = plugLocalPosition.clone().sub(newPart.position);
+-      
+-      newPart.position.copy(worldPosition).sub(plugOffset);
+-      
+-      // 4. Match the rotation so the part isn't upside down
+-      const worldQuaternion = new THREE.Quaternion();
+-      socket.getWorldQuaternion(worldQuaternion);
+-      newPart.quaternion.copy(worldQuaternion);
+-      
+-      // 5. Parent it so they move together
+-      basePart.attach(newPart);
+-      
+-      // Store connection metadata
+-      newPart.userData.attachedTo = basePart.userData.partName || 'base';
+-      newPart.userData.socket = socketName;
+-      
+-      console.log(`Snapped ${newPart.userData.partName || 'part'} to ${socketName}`);
+-      return true;
+-    }
+-    
+-    console.warn(`Socket ${socketName} or Plug not found for snapping`);
+-    return false;
+-  };
+-
+-  // 10. Animation loop
+-  let animationFrameId: number;
+-  
+-  const animate = () => {
+-    animationFrameId = requestAnimationFrame(animate);
+-    controls.update();
+-    renderer.render(scene, camera);
+-    labelRenderer.render(scene, camera);
+-  };
+-
+-  // 10. Resize handler
+-  const resize = () => {
+-    const newWidth = container.clientWidth || window.innerWidth;
+-    const newHeight = container.clientHeight || window.innerHeight;
+-    
+-    camera.aspect = newWidth / newHeight;
+-    camera.updateProjectionMatrix();
+-    
+-    renderer.setSize(newWidth, newHeight);
+-    labelRenderer.setSize(newWidth, newHeight);
+-  };
+-
+-  // 11. Cleanup function
+-  const dispose = () => {
+-    cancelAnimationFrame(animationFrameId);
+-    
+-    // Dispose all objects in scene
+-    scene.traverse((object) => {
+-      if (object instanceof THREE.Mesh) {
+-        object.geometry.dispose();
+-        if (Array.isArray(object.material)) {
+-          object.material.forEach((mat) => mat.dispose());
+-        } else {
+-          object.material.dispose();
+-        }
+-      }
+-    });
+-    
+-    renderer.dispose();
+-    controls.dispose();
+-    
+-    // Remove DOM elements
+-    if (renderer.domElement.parentNode) {
+-      renderer.domElement.parentNode.removeChild(renderer.domElement);
+-    }
+-    if (labelRenderer.domElement.parentNode) {
+-      labelRenderer.domElement.parentNode.removeChild(labelRenderer.domElement);
+-    }
+-  };
+-
+-  return {
+-    scene,
+-    camera,
+-    renderer,
+-    labelRenderer,
+-    controls,
+-    loadFirearmPart,
+-    loadHDREnvironment,
+-    snapToSocket,
+-    animate,
+-    dispose,
+-    resize,
+-  };
+-};
+-
+-/**
+- * Creates a placeholder part with realistic PBR materials
+- * for testing when GLTF models aren't available
+- */
+-export const createPlaceholderPart = (
+-  scene: THREE.Scene,
+-  name: string,
+-  geometry: THREE.BufferGeometry,
+-  position: THREE.Vector3,
+-  color: number = 0x333333
+-): THREE.Mesh => {
+-  const material = new THREE.MeshStandardMaterial({
+-    color,
+-    roughness: 0.4,
+-    metalness: 0.8,
+-    envMapIntensity: 1.0,
+-  });
+-
+-  const mesh = new THREE.Mesh(geometry, material);
+-  mesh.position.copy(position);
+-  mesh.castShadow = true;
+-  mesh.receiveShadow = true;
+-  mesh.userData.partName = name;
+-
+-  // Add CSS2D label
+-  const labelDiv = document.createElement('div');
+-  labelDiv.className = 'part-label';
+-  labelDiv.textContent = name;
+-  labelDiv.style.cssText = `
+-    color: white;
+-    font-family: system-ui, -apple-system, sans-serif;
+-    font-size: 12px;
+-    font-weight: 500;
+-    padding: 4px 8px;
+-    background: rgba(0, 0, 0, 0.7);
+-    border-radius: 4px;
+-    border: 1px solid rgba(255, 255, 255, 0.2);
+-    backdrop-filter: blur(4px);
+-    white-space: nowrap;
+-    pointer-events: none;
+-  `;
+-
+-  const label = new CSS2DObject(labelDiv);
+-  const box = new THREE.Box3().setFromObject(mesh);
+-  const size = box.getSize(new THREE.Vector3());
+-  label.position.set(0, size.y / 2 + 0.3, 0);
+-  mesh.add(label);
+-
+-  scene.add(mesh);
+-  return mesh;
+-};
+diff --git a/src/components/3d/HighFidelityViewer.tsx b/src/components/3d/HighFidelityViewer.tsx
+deleted file mode 100644
+index e448d3b..0000000
+--- a/src/components/3d/HighFidelityViewer.tsx
++++ /dev/null
+@@ -1,184 +0,0 @@
+-import React, { useCallback, useState } from 'react';
+-import { useHighFidelityScene } from './useHighFidelityScene';
+-import { createPlaceholderPart, type HighFidelitySceneContext } from './HighFidelityScene';
+-import * as THREE from 'three';
+-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+-import { Button } from '@/components/ui/button';
+-import { Badge } from '@/components/ui/badge';
+-import { Input } from '@/components/ui/input';
+-import { toast } from 'sonner';
+-import { Loader2, Upload, Box } from 'lucide-react';
+-
+-interface LoadedPart {
+-  name: string;
+-  object: THREE.Object3D;
+-}
+-
+-/**
+- * High-Fidelity 3D Viewer Component
+- * Uses pure Three.js with HDR environment maps, GLTF loading, and CSS2D labels
+- */
+-export const HighFidelityViewer: React.FC = () => {
+-  const [loadedParts, setLoadedParts] = useState<LoadedPart[]>([]);
+-  const [isLoading, setIsLoading] = useState(false);
+-  const [hdrLoaded, setHdrLoaded] = useState(false);
+-  const [modelUrl, setModelUrl] = useState('');
+-
+-  const handleSceneReady = useCallback((context: HighFidelitySceneContext) => {
+-    // Add some placeholder parts to demonstrate the scene
+-    const lowerReceiver = createPlaceholderPart(
+-      context.scene,
+-      'Lower Receiver',
+-      new THREE.BoxGeometry(2.5, 0.8, 0.6),
+-      new THREE.Vector3(0, 0.4, 0),
+-      0x3d3d3d
+-    );
+-
+-    const upperReceiver = createPlaceholderPart(
+-      context.scene,
+-      'Upper Receiver',
+-      new THREE.BoxGeometry(2.8, 0.6, 0.55),
+-      new THREE.Vector3(0, 1.1, 0),
+-      0x2d2d2d
+-    );
+-
+-    const barrel = createPlaceholderPart(
+-      context.scene,
+-      'Barrel (16")',
+-      new THREE.CylinderGeometry(0.12, 0.12, 2.2, 32),
+-      new THREE.Vector3(1.8, 1.1, 0),
+-      0x1f1f1f
+-    );
+-    barrel.rotation.z = Math.PI / 2;
+-
+-    const stock = createPlaceholderPart(
+-      context.scene,
+-      'Buttstock',
+-      new THREE.BoxGeometry(1.0, 0.5, 0.4),
+-      new THREE.Vector3(-1.6, 0.5, 0),
+-      0x2a2a2a
+-    );
+-
+-    // Add ground plane
+-    const groundGeometry = new THREE.PlaneGeometry(10, 10);
+-    const groundMaterial = new THREE.MeshStandardMaterial({
+-      color: 0x222222,
+-      roughness: 0.9,
+-      metalness: 0.1,
+-    });
+-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+-    ground.rotation.x = -Math.PI / 2;
+-    ground.position.y = -0.1;
+-    ground.receiveShadow = true;
+-    context.scene.add(ground);
+-
+-    setLoadedParts([
+-      { name: 'Lower Receiver', object: lowerReceiver },
+-      { name: 'Upper Receiver', object: upperReceiver },
+-      { name: 'Barrel (16")', object: barrel },
+-      { name: 'Buttstock', object: stock },
+-    ]);
+-
+-    setHdrLoaded(true);
+-    toast.success('High-fidelity scene initialized with HDR environment');
+-  }, []);
+-
+-  const { containerRef, loadModel } = useHighFidelityScene({
+-    onReady: handleSceneReady,
+-    backgroundColor: 0x1a1a2e,
+-    enableHDR: true,
+-  });
+-
+-  const handleLoadModel = async () => {
+-    if (!modelUrl.trim()) {
+-      toast.error('Please enter a GLTF/GLB model URL');
+-      return;
+-    }
+-
+-    setIsLoading(true);
+-    try {
+-      const partName = modelUrl.split('/').pop()?.replace(/\.(gltf|glb)$/i, '') || 'Loaded Part';
+-      const object = await loadModel(modelUrl, partName);
+-      setLoadedParts((prev) => [...prev, { name: partName, object }]);
+-      toast.success(`Loaded ${partName}`);
+-      setModelUrl('');
+-    } catch (error) {
+-      toast.error('Failed to load model. Check the URL and try again.');
+-    } finally {
+-      setIsLoading(false);
+-    }
+-  };
+-
+-  return (
+-    <Card className="w-full max-w-4xl mx-auto">
+-      <CardHeader>
+-        <CardTitle className="flex items-center justify-between">
+-          <span className="flex items-center gap-2">
+-            <Box className="h-5 w-5" />
+-            High-Fidelity 3D Viewer
+-          </span>
+-          <div className="flex items-center gap-2">
+-            <Badge variant={hdrLoaded ? 'default' : 'secondary'}>
+-              {hdrLoaded ? '✓ HDR Active' : 'Loading HDR...'}
+-            </Badge>
+-            <Badge variant="outline">{loadedParts.length} Parts</Badge>
+-          </div>
+-        </CardTitle>
+-      </CardHeader>
+-      <CardContent className="space-y-4">
+-        {/* 3D Viewer Container */}
+-        <div
+-          ref={containerRef}
+-          className="h-[500px] w-full rounded-lg overflow-hidden border relative"
+-          style={{ background: 'linear-gradient(to bottom, #1a1a2e, #16213e)' }}
+-        />
+-
+-        {/* Model Loader */}
+-        <div className="flex gap-2">
+-          <Input
+-            placeholder="Enter GLTF/GLB model URL..."
+-            value={modelUrl}
+-            onChange={(e) => setModelUrl(e.target.value)}
+-            onKeyDown={(e) => e.key === 'Enter' && handleLoadModel()}
+-          />
+-          <Button onClick={handleLoadModel} disabled={isLoading}>
+-            {isLoading ? (
+-              <>
+-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+-                Loading...
+-              </>
+-            ) : (
+-              <>
+-                <Upload className="h-4 w-4 mr-1" />
+-                Load Model
+-              </>
+-            )}
+-          </Button>
+-        </div>
+-
+-        {/* Loaded Parts List */}
+-        <div className="flex flex-wrap gap-2">
+-          {loadedParts.map((part, index) => (
+-            <Badge key={index} variant="secondary">
+-              {part.name}
+-            </Badge>
+-          ))}
+-        </div>
+-
+-        {/* Info */}
+-        <div className="text-xs text-muted-foreground space-y-1">
+-          <p>
+-            <strong>Features:</strong> ACES Filmic tone mapping • HDR environment
+-            reflections • CSS2D floating labels • GLTF/GLB support
+-          </p>
+-          <p>
+-            <strong>Controls:</strong> Click + drag to rotate • Scroll to zoom •
+-            Right-click to pan
+-          </p>
+-        </div>
+-      </CardContent>
+-    </Card>
+-  );
+-};
+-
+-export default HighFidelityViewer;
+diff --git a/src/components/3d/buildExport.ts b/src/components/3d/buildExport.ts
+deleted file mode 100644
+index 4d0758d..0000000
+--- a/src/components/3d/buildExport.ts
++++ /dev/null
+@@ -1,109 +0,0 @@
+-import jsPDF from "jspdf";
+-import autoTable from "jspdf-autotable";
+-import html2canvas from "html2canvas";
+-
+-// PDF Build Export Utility - Generates specification documents for firearm builds
+-
+-interface PartExportData {
+-  category: string;
+-  name: string;
+-  mass: number;
+-  nfaStatus: string;
+-}
+-
+-interface BuildExportData {
+-  name: string;
+-  totalMass: number;
+-  cogDescription: string;
+-  nfaStatus?: string;
+-  nfaDetails?: string;
+-  parts: PartExportData[];
+-}
+-
+-export const generateBuildExport = async (
+-  buildData: BuildExportData,
+-  canvasElement: HTMLElement | null
+-): Promise<void> => {
+-  const doc = new jsPDF("p", "mm", "a4");
+-  const timestamp = new Date().toLocaleString();
+-
+-  // Header
+-  doc.setFontSize(22);
+-  doc.text("Custom Firearm Build Specification", 10, 20);
+-  doc.setFontSize(10);
+-  doc.text(`Generated on: ${timestamp}`, 10, 28);
+-
+-  let currentY = 35;
+-
+-  // 1. Capture the 3D Render if canvas is available
+-  if (canvasElement) {
+-    try {
+-      const canvas = await html2canvas(canvasElement, {
+-        backgroundColor: "#1a1a1a",
+-        scale: 2,
+-      });
+-      const imgData = canvas.toDataURL("image/png");
+-      doc.addImage(imgData, "PNG", 10, currentY, 190, 100);
+-      currentY = 145;
+-    } catch (error) {
+-      console.error("Failed to capture 3D view:", error);
+-      currentY = 40;
+-    }
+-  } else {
+-    currentY = 40;
+-  }
+-
+-  // 2. Build Statistics (Weight & Balance)
+-  doc.setFontSize(14);
+-  doc.text("Build Statistics", 10, currentY);
+-  doc.setFontSize(11);
+-  doc.text(`Total Mass: ${(buildData.totalMass * 2.20462).toFixed(2)} lbs (${buildData.totalMass.toFixed(3)} kg)`, 15, currentY + 10);
+-  doc.text(`Balance Point: ${buildData.cogDescription}`, 15, currentY + 17);
+-  currentY += 30;
+-
+-  // 2.5 NFA Compliance Status
+-  if (buildData.nfaStatus) {
+-    const isNFA = buildData.nfaStatus.includes("NFA REGULATED");
+-    doc.setFontSize(12);
+-    doc.setTextColor(isNFA ? 200 : 0, isNFA ? 0 : 128, 0);
+-    doc.text(`Compliance: ${buildData.nfaStatus}`, 10, currentY);
+-    doc.setFontSize(9);
+-    doc.setTextColor(80, 80, 80);
+-    if (buildData.nfaDetails) {
+-      doc.text(buildData.nfaDetails, 15, currentY + 7, { maxWidth: 175 });
+-    }
+-    doc.setTextColor(0, 0, 0);
+-    currentY += 18;
+-  }
+-
+-  // 3. Parts List Table
+-  autoTable(doc, {
+-    startY: currentY,
+-    head: [["Category", "Part Name", "Mass (lbs)", "Legal Status"]],
+-    body: buildData.parts.map((p) => [
+-      p.category,
+-      p.name,
+-      (p.mass * 2.20462).toFixed(3),
+-      p.nfaStatus,
+-    ]),
+-    theme: "striped",
+-    headStyles: { fillColor: [60, 60, 60] },
+-  });
+-
+-  // 4. LEGAL COMPLIANCE DISCLAIMER
+-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+-  doc.setFontSize(12);
+-  doc.setTextColor(200, 0, 0);
+-  doc.text("LEGAL COMPLIANCE & SAFETY WARNING", 10, finalY);
+-
+-  doc.setFontSize(8);
+-  doc.setTextColor(0, 0, 0);
+-  const disclaimer = `WARNING: This document is a digital prototype for a 1:2 scale non-functional model. 
+-Any attempt to scale this design to 1:1 or use it for live-fire manufacturing may violate 
+-state and federal laws (NFA/ITAR). 2026 UPDATE: Under the OBBBA, certain NFA items 
+-may have $0 tax but still require ATF registration. Consult a licensed FFL gunsmith.`;
+-
+-  doc.text(disclaimer, 10, finalY + 5, { maxWidth: 180 });
+-
+-  doc.save(`${buildData.name}_Specs.pdf`);
+-};
+diff --git a/src/components/3d/useHighFidelityScene.ts b/src/components/3d/useHighFidelityScene.ts
+deleted file mode 100644
+index 59bdc61..0000000
+--- a/src/components/3d/useHighFidelityScene.ts
++++ /dev/null
+@@ -1,79 +0,0 @@
+-import { useEffect, useRef, useCallback } from 'react';
+-import { 
+-  initHighFidelityScene, 
+-  type HighFidelitySceneContext,
+-  type HighFidelitySceneOptions 
+-} from './HighFidelityScene';
+-
+-interface UseHighFidelitySceneOptions extends Omit<HighFidelitySceneOptions, 'container'> {
+-  onReady?: (context: HighFidelitySceneContext) => void;
+-  autoAnimate?: boolean;
+-}
+-
+-/**
+- * React hook for managing a high-fidelity Three.js scene
+- * with automatic cleanup and resize handling
+- */
+-export const useHighFidelityScene = (options: UseHighFidelitySceneOptions = {}) => {
+-  const { onReady, autoAnimate = true, ...sceneOptions } = options;
+-  const containerRef = useRef<HTMLDivElement>(null);
+-  const contextRef = useRef<HighFidelitySceneContext | null>(null);
+-
+-  const initScene = useCallback(() => {
+-    if (!containerRef.current || contextRef.current) return;
+-
+-    const context = initHighFidelityScene({
+-      container: containerRef.current,
+-      ...sceneOptions,
+-    });
+-
+-    contextRef.current = context;
+-
+-    if (autoAnimate) {
+-      context.animate();
+-    }
+-
+-    if (onReady) {
+-      onReady(context);
+-    }
+-  }, [autoAnimate, onReady, sceneOptions]);
+-
+-  useEffect(() => {
+-    initScene();
+-
+-    const handleResize = () => {
+-      contextRef.current?.resize();
+-    };
+-
+-    window.addEventListener('resize', handleResize);
+-
+-    return () => {
+-      window.removeEventListener('resize', handleResize);
+-      contextRef.current?.dispose();
+-      contextRef.current = null;
+-    };
+-  }, [initScene]);
+-
+-  const loadModel = useCallback(async (url: string, partName: string) => {
+-    if (!contextRef.current) {
+-      throw new Error('Scene not initialized');
+-    }
+-    return contextRef.current.loadFirearmPart(url, partName);
+-  }, []);
+-
+-  const loadHDR = useCallback(async (url: string) => {
+-    if (!contextRef.current) {
+-      throw new Error('Scene not initialized');
+-    }
+-    return contextRef.current.loadHDREnvironment(url);
+-  }, []);
+-
+-  const getContext = useCallback(() => contextRef.current, []);
+-
+-  return {
+-    containerRef,
+-    loadModel,
+-    loadHDR,
+-    getContext,
+-  };
+-};
+diff --git a/src/contexts/AppContext.tsx b/src/contexts/AppContext.tsx
+index 1610cdb..144261c 100644
+--- a/src/contexts/AppContext.tsx
++++ b/src/contexts/AppContext.tsx
+@@ -1,5 +1,5 @@
+ import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+-import { UserRole, mockUser } from '@/lib/mockData';
++import { UserRole } from '@/lib/mockData';
+ import { useAuth } from '@/contexts/AuthContext';
+ import { supabase } from '@/integrations/supabase/client';
+ 
+@@ -18,7 +18,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
+   const [currentRole, setCurrentRole] = useState<UserRole>('student');
+   const [isLoggedIn, setIsLoggedIn] = useState(false);
+   const [userName, setUserName] = useState('Student');
+-  const [profileStrength, setProfileStrength] = useState(mockUser.profileStrength);
++  const [profileStrength, setProfileStrength] = useState(0);
+   
+   const { user } = useAuth();
+ 
+@@ -28,17 +28,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
+       // Fetch profile name from database
+       supabase
+         .from('profiles')
+-        .select('full_name, preferred_name')
++        .select('full_name, preferred_name, state, grad_year, gpa_unweighted, sat_score, intended_majors, budget_max_usd, financial_need, first_gen_college, interests, values, leadership_roles, awards, volunteer_hours, preferred_setting')
+         .eq('id', user.id)
+         .maybeSingle()
+         .then(({ data }) => {
+           if (data) {
+             setUserName(data.preferred_name || data.full_name || 'Student');
++            // Calculate real profile strength from actual fields
++            const fields = [
++              { key: 'full_name', weight: 5 },
++              { key: 'state', weight: 5 },
++              { key: 'grad_year', weight: 5 },
++              { key: 'gpa_unweighted', weight: 10 },
++              { key: 'sat_score', weight: 8 },
++              { key: 'intended_majors', weight: 8 },
++              { key: 'budget_max_usd', weight: 8 },
++              { key: 'financial_need', weight: 5 },
++              { key: 'first_gen_college', weight: 5 },
++              { key: 'interests', weight: 8 },
++              { key: 'values', weight: 8 },
++              { key: 'leadership_roles', weight: 8 },
++              { key: 'awards', weight: 7 },
++              { key: 'volunteer_hours', weight: 5 },
++              { key: 'preferred_setting', weight: 5 },
++            ];
++            const profile = data as Record<string, unknown>;
++            let earned = 0;
++            for (const { key, weight } of fields) {
++              const val = profile[key];
++              if (val !== null && val !== undefined && val !== '' && !(Array.isArray(val) && val.length === 0)) {
++                earned += weight;
++              }
++            }
++            setProfileStrength(Math.min(100, Math.round(earned)));
+           }
+         });
+     } else {
+       setIsLoggedIn(false);
+       setUserName('Student');
++      setProfileStrength(0);
+     }
+   }, [user]);
+ 
+diff --git a/src/pages/AssemblyDemo.tsx b/src/pages/AssemblyDemo.tsx
+deleted file mode 100644
+index 7096ad2..0000000
+--- a/src/pages/AssemblyDemo.tsx
++++ /dev/null
+@@ -1,31 +0,0 @@
+-import React from "react";
+-import { AssemblyViewer } from "@/components/3d/AssemblyViewer";
+-import { Button } from "@/components/ui/button";
+-import { useNavigate } from "react-router-dom";
+-import { Sparkles } from "lucide-react";
+-
+-const AssemblyDemo: React.FC = () => {
+-  const navigate = useNavigate();
+-
+-  return (
+-    <div className="min-h-screen bg-background p-8">
+-      <div className="max-w-4xl mx-auto space-y-6">
+-        <div className="flex items-center justify-end gap-4">
+-          <Button variant="outline" size="sm" onClick={() => navigate("/hifi")}>
+-            <Sparkles className="h-4 w-4 mr-1" />
+-            High-Fidelity Viewer
+-          </Button>
+-        </div>
+-        <div className="text-center space-y-2">
+-          <h1 className="text-3xl font-bold">Assembly Viewer Demo</h1>
+-          <p className="text-muted-foreground">
+-            Interactive 3D part assembly with attach/detach and exploded view
+-          </p>
+-        </div>
+-        <AssemblyViewer />
+-      </div>
+-    </div>
+-  );
+-};
+-
+-export default AssemblyDemo;
+diff --git a/src/pages/Dashboard.tsx b/src/pages/Dashboard.tsx
+index 992f065..579fd22 100644
+--- a/src/pages/Dashboard.tsx
++++ b/src/pages/Dashboard.tsx
+@@ -1,64 +1,192 @@
+ import * as React from "react";
+ import { useApp } from "@/contexts/AppContext";
++import { useAuth } from "@/contexts/AuthContext";
++import { supabase } from "@/integrations/supabase/client";
+ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Button } from "@/components/ui/button";
+ import { Badge } from "@/components/ui/badge";
+ import { Progress } from "@/components/ui/progress";
+ import { StatCard } from "@/components/ui/stat-card";
+ import { PremiumUpgradeCard } from "@/components/subscription/PremiumUpgradeCard";
+-import { 
+-  mockColleges, 
+-  mockScholarships, 
+-  mockNextActions,
+-} from "@/lib/mockData";
+-import { 
+-  Target, 
+-  Award, 
+-  CheckCircle2, 
+-  Circle,
+-  ArrowRight,
+-  TrendingUp,
+-  GraduationCap,
+-  Sparkles,
+-  Calendar
++import { Skeleton } from "@/components/ui/skeleton";
++import {
++  Target, Award, CheckCircle2, Circle, ArrowRight,
++  TrendingUp, GraduationCap, Sparkles, Calendar, AlertCircle,
+ } from "lucide-react";
+ import { Link } from "react-router-dom";
+ 
+-// Lazy load the wizard to avoid circular dependency issues
+-const ProfileCompletionWizard = React.lazy(() => import("@/components/profile/ProfileCompletionWizard"));
++const ProfileCompletionWizard = React.lazy(() =>
++  import("@/components/profile/ProfileCompletionWizard")
++);
++
++interface DashboardStats {
++  collegeMatchCount: number;
++  scholarshipMatchCount: number;
++  scholarshipPotentialUsd: number;
++  nextDeadlineDays: number | null;
++  nextDeadlineLabel: string | null;
++}
++
++interface CollegeMatchRow {
++  id: string;
++  bucket: string;
++  fit_score: number;
++  colleges: { name: string; city: string | null; state: string | null } | null;
++}
++
++interface ScholarshipMatchRow {
++  id: string;
++  score: number;
++  scholarships: {
++    name: string;
++    amount_max_usd: number | null;
++    amount_usd: number | null;
++    deadline_date: string | null;
++  } | null;
++}
++
++interface TaskRow {
++  id: string;
++  title: string;
++  completed_at: string | null;
++  due_at: string | null;
++  priority: number;
++}
++
++function fitBadgeVariant(bucket: string): "default" | "secondary" | "destructive" {
++  if (bucket === "likely" || bucket === "safety") return "default";
++  if (bucket === "target") return "secondary";
++  return "destructive";
++}
++
++function fitBadgeLabel(bucket: string): string {
++  const map: Record<string, string> = {
++    likely: "Likely", safety: "Safety", target: "Target",
++    reach: "Reach", unlikely: "Unlikely",
++  };
++  return map[bucket] ?? bucket;
++}
+ 
+ export default function Dashboard() {
+   const [showWizard, setShowWizard] = React.useState(false);
+-  const { userName, profileStrength, currentRole } = useApp();
++  const { userName, profileStrength } = useApp();
++  const { user } = useAuth();
+   const firstName = userName.split(" ")[0];
+ 
++  const [stats, setStats] = React.useState<DashboardStats | null>(null);
++  const [collegeMatches, setCollegeMatches] = React.useState<CollegeMatchRow[]>([]);
++  const [scholarshipMatches, setScholarshipMatches] = React.useState<ScholarshipMatchRow[]>([]);
++  const [tasks, setTasks] = React.useState<TaskRow[]>([]);
++  const [loading, setLoading] = React.useState(true);
++  const [error, setError] = React.useState<string | null>(null);
++
++  React.useEffect(() => {
++    if (!user) return;
++    async function loadDashboard() {
++      setLoading(true);
++      setError(null);
++      try {
++        const [cmRes, smRes, taskRes] = await Promise.all([
++          supabase
++            .from("college_matches")
++            .select("id, bucket, fit_score, colleges(name, city, state)")
++            .eq("student_id", user!.id)
++            .order("fit_score", { ascending: false })
++            .limit(5),
++          supabase
++            .from("scholarship_matches")
++            .select("id, score, scholarships(name, amount_max_usd, amount_usd, deadline_date)")
++            .eq("user_id", user!.id)
++            .eq("eligibility_status", "eligible")
++            .order("score", { ascending: false })
++            .limit(3),
++          supabase
++            .from("tasks")
++            .select("id, title, completed_at, due_at, priority")
++            .eq("student_id", user!.id)
++            .order("completed_at", { ascending: true, nullsFirst: true })
++            .order("priority", { ascending: false })
++            .limit(5),
++        ]);
++
++        if (cmRes.error) throw cmRes.error;
++        if (smRes.error) throw smRes.error;
++        if (taskRes.error) throw taskRes.error;
++
++        const colleges = (cmRes.data ?? []) as unknown as CollegeMatchRow[];
++        const scholarships = (smRes.data ?? []) as unknown as ScholarshipMatchRow[];
++        const taskList = (taskRes.data ?? []) as TaskRow[];
++
++        setCollegeMatches(colleges);
++        setScholarshipMatches(scholarships);
++        setTasks(taskList);
++
++        const potential = scholarships.reduce((sum, sm) => {
++          return sum + (sm.scholarships?.amount_max_usd ?? sm.scholarships?.amount_usd ?? 0);
++        }, 0);
++
++        const now = new Date();
++        const upcomingDeadlines = scholarships
++          .map((sm) => sm.scholarships?.deadline_date)
++          .filter(Boolean)
++          .map((d) => new Date(d!))
++          .filter((d) => d > now)
++          .sort((a, b) => a.getTime() - b.getTime());
++
++        const nextDeadline = upcomingDeadlines[0] ?? null;
++        setStats({
++          collegeMatchCount: colleges.length,
++          scholarshipMatchCount: scholarships.length,
++          scholarshipPotentialUsd: potential,
++          nextDeadlineDays: nextDeadline
++            ? Math.ceil((nextDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
++            : null,
++          nextDeadlineLabel: nextDeadline
++            ? nextDeadline.toLocaleDateString("en-US", { month: "short", day: "numeric" })
++            : null,
++        });
++      } catch (err) {
++        console.error("Dashboard load error:", err);
++        setError("Could not load your dashboard data. Please try refreshing.");
++      } finally {
++        setLoading(false);
++      }
++    }
++    loadDashboard();
++  }, [user]);
++
++  const fmt = (n: number) =>
++    new Intl.NumberFormat("en-US", {
++      style: "currency", currency: "USD", maximumFractionDigits: 0,
++    }).format(n);
++
+   return (
+     <div className="space-y-8 animate-fade-in">
+       {/* Welcome Header */}
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+         <div>
+-          <h1 className="text-3xl font-bold text-foreground">
+-            Welcome back, {firstName}! 👋
+-          </h1>
+-          <p className="text-muted-foreground mt-1">
+-            Here's what's happening with your college applications.
+-          </p>
++          <h1 className="text-3xl font-bold text-foreground">Welcome back, {firstName}! 👋</h1>
++          <p className="text-muted-foreground mt-1">Here's what's happening with your college applications.</p>
+         </div>
+         <Button variant="hero" asChild>
+-          <Link to="/profile">
+-            Complete Profile
+-            <ArrowRight className="h-4 w-4 ml-1" />
+-          </Link>
++          <Link to="/profile">Complete Profile <ArrowRight className="h-4 w-4 ml-1" /></Link>
+         </Button>
+       </div>
+ 
+-      {/* Profile Completion Wizard or Summary */}
++      {/* Error Banner */}
++      {error && (
++        <Card className="border-destructive/50 bg-destructive/5">
++          <CardContent className="py-4 flex items-center gap-3">
++            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
++            <p className="text-sm text-destructive">{error}</p>
++          </CardContent>
++        </Card>
++      )}
++
++      {/* Profile Completion Wizard or Strength Card */}
+       {showWizard ? (
+         <React.Suspense fallback={<Card className="animate-pulse p-8"><div className="h-8 bg-muted rounded w-1/3 mb-4" /></Card>}>
+-          <ProfileCompletionWizard 
+-            onComplete={() => setShowWizard(false)}
+-            onFieldUpdate={() => {}}
+-          />
++          <ProfileCompletionWizard onComplete={() => setShowWizard(false)} onFieldUpdate={() => {}} />
+         </React.Suspense>
+       ) : (
+         <Card variant="highlight">
+@@ -74,21 +202,12 @@ export default function Dashboard() {
+                 <p className="text-sm text-muted-foreground mb-4">
+                   Complete your profile to unlock more college matches and scholarship opportunities.
+                 </p>
+-                <Progress 
+-                  value={profileStrength} 
+-                  variant="primary" 
+-                  indicatorVariant="gradient"
+-                  size="lg"
+-                  className="max-w-md"
+-                />
++                <Progress value={profileStrength} variant="primary" indicatorVariant="gradient" size="lg" className="max-w-md" />
+               </div>
+               <div className="flex items-center gap-4">
+-                <div className="text-4xl font-bold text-primary">
+-                  {profileStrength}%
+-                </div>
++                <div className="text-4xl font-bold text-primary">{profileStrength}%</div>
+                 <Button variant="outline" onClick={() => setShowWizard(true)}>
+-                  <Sparkles className="h-4 w-4 mr-2" />
+-                  Boost Profile
++                  <Sparkles className="h-4 w-4 mr-2" />Boost Profile
+                 </Button>
+               </div>
+             </div>
+@@ -98,77 +217,100 @@ export default function Dashboard() {
+ 
+       {/* Stats Grid */}
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+-        <StatCard
+-          title="College Matches"
+-          value="12"
+-          subtitle="3 new this week"
+-          icon={GraduationCap}
+-          variant="primary"
+-        />
+-        <StatCard
+-          title="Scholarship Matches"
+-          value="8"
+-          subtitle="$45,000 potential"
+-          icon={Award}
+-          variant="success"
+-        />
+-        <StatCard
+-          title="Profile Views"
+-          value="24"
+-          subtitle="+12% from last week"
+-          icon={TrendingUp}
+-          trend={{ value: 12, label: "vs last week", positive: true }}
+-        />
+-        <StatCard
+-          title="Days to Deadline"
+-          value="18"
+-          subtitle="Next: Jan 15"
+-          icon={Calendar}
+-          variant="warning"
+-        />
++        {loading ? (
++          Array.from({ length: 4 }).map((_, i) => (
++            <Card key={i}>
++              <CardContent className="py-6">
++                <Skeleton className="h-8 w-16 mb-2" />
++                <Skeleton className="h-4 w-24" />
++              </CardContent>
++            </Card>
++          ))
++        ) : (
++          <>
++            <StatCard
++              title="College Matches"
++              value={stats?.collegeMatchCount ?? 0}
++              subtitle={stats?.collegeMatchCount ? "Based on your profile" : "Complete profile to see matches"}
++              icon={GraduationCap}
++              variant="primary"
++            />
++            <StatCard
++              title="Scholarship Matches"
++              value={stats?.scholarshipMatchCount ?? 0}
++              subtitle={stats?.scholarshipPotentialUsd ? `${fmt(stats.scholarshipPotentialUsd)} potential` : "Complete profile to see matches"}
++              icon={Award}
++              variant="success"
++            />
++            <StatCard
++              title="Profile Strength"
++              value={`${profileStrength}%`}
++              subtitle="Keep building your story"
++              icon={TrendingUp}
++              trend={profileStrength > 0 ? { value: profileStrength, label: "complete", positive: true } : undefined}
++            />
++            <StatCard
++              title="Days to Deadline"
++              value={stats?.nextDeadlineDays ?? "—"}
++              subtitle={stats?.nextDeadlineLabel ? `Next: ${stats.nextDeadlineLabel}` : "No upcoming deadlines"}
++              icon={Calendar}
++              variant={stats?.nextDeadlineDays && stats.nextDeadlineDays <= 14 ? "warning" : undefined}
++            />
++          </>
++        )}
+       </div>
+ 
+       {/* Main Content Grid */}
+       <div className="grid lg:grid-cols-3 gap-6">
+-        {/* Premium Upgrade Card */}
+         <div className="lg:col-span-1">
+           <PremiumUpgradeCard />
+         </div>
+ 
+-        {/* Next Best Actions */}
++        {/* Next Best Actions — real tasks from DB */}
+         <Card className="lg:col-span-1">
+           <CardHeader>
+             <CardTitle className="flex items-center gap-2">
+-              <Target className="h-5 w-5 text-primary" />
+-              Next Best Actions
++              <Target className="h-5 w-5 text-primary" />Next Best Actions
+             </CardTitle>
+             <CardDescription>Your personalized to-do list</CardDescription>
+           </CardHeader>
+           <CardContent>
+-            <ul className="space-y-3">
+-              {mockNextActions.slice(0, 5).map((action) => (
+-                <li key={action.id} className="flex items-start gap-3">
+-                  {action.completed ? (
+-                    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
+-                  ) : (
+-                    <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+-                  )}
+-                  <span className={`text-sm ${action.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+-                    {action.title}
+-                  </span>
+-                </li>
+-              ))}
+-            </ul>
++            {loading ? (
++              <div className="space-y-3">
++                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
++              </div>
++            ) : tasks.length === 0 ? (
++              <div className="text-center py-6 text-muted-foreground">
++                <Target className="h-8 w-8 mx-auto mb-2 opacity-40" />
++                <p className="text-sm">No tasks yet.</p>
++                <p className="text-xs mt-1">Complete your profile to generate your action plan.</p>
++                <Button variant="outline" size="sm" className="mt-3" asChild>
++                  <Link to="/profile">Build Profile</Link>
++                </Button>
++              </div>
++            ) : (
++              <ul className="space-y-3">
++                {tasks.map((task) => (
++                  <li key={task.id} className="flex items-start gap-3">
++                    {task.completed_at
++                      ? <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
++                      : <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />}
++                    <span className={`text-sm ${task.completed_at ? "text-muted-foreground line-through" : "text-foreground"}`}>
++                      {task.title}
++                    </span>
++                  </li>
++                ))}
++              </ul>
++            )}
+           </CardContent>
+         </Card>
+ 
+-        {/* College Fit Snapshot */}
++        {/* College Fit Snapshot — real college_matches from DB */}
+         <Card className="lg:col-span-3">
+           <CardHeader className="flex flex-row items-center justify-between">
+             <div>
+               <CardTitle className="flex items-center gap-2">
+-                <GraduationCap className="h-5 w-5 text-primary" />
+-                College Fit Snapshot
++                <GraduationCap className="h-5 w-5 text-primary" />College Fit Snapshot
+               </CardTitle>
+               <CardDescription>Top matches based on your profile</CardDescription>
+             </div>
+@@ -177,68 +319,103 @@ export default function Dashboard() {
+             </Button>
+           </CardHeader>
+           <CardContent>
+-            <div className="space-y-4">
+-              {mockColleges.map((college) => (
+-                <div 
+-                  key={college.id} 
+-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/20 hover:bg-muted/30 transition-colors"
+-                >
+-                  <div className="flex items-center gap-4">
+-                    <div className="w-12 h-12 rounded-lg bg-primary-light flex items-center justify-center">
+-                      <GraduationCap className="h-6 w-6 text-primary" />
++            {loading ? (
++              <div className="space-y-4">
++                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
++              </div>
++            ) : collegeMatches.length === 0 ? (
++              <div className="text-center py-8 text-muted-foreground">
++                <GraduationCap className="h-10 w-10 mx-auto mb-3 opacity-40" />
++                <p className="text-sm font-medium">No college matches yet.</p>
++                <p className="text-xs mt-1 max-w-xs mx-auto">
++                  Finish your profile and visit the Discovery page to generate your personalized college list.
++                </p>
++                <Button variant="outline" size="sm" className="mt-4" asChild>
++                  <Link to="/discovery">Explore Colleges</Link>
++                </Button>
++              </div>
++            ) : (
++              <div className="space-y-4">
++                {collegeMatches.map((match) => (
++                  <div key={match.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/20 hover:bg-muted/30 transition-colors">
++                    <div className="flex items-center gap-4">
++                      <div className="w-12 h-12 rounded-lg bg-primary-light flex items-center justify-center">
++                        <GraduationCap className="h-6 w-6 text-primary" />
++                      </div>
++                      <div>
++                        <h4 className="font-medium text-foreground">{match.colleges?.name ?? "Unknown College"}</h4>
++                        <p className="text-sm text-muted-foreground">
++                          {[match.colleges?.city, match.colleges?.state].filter(Boolean).join(", ")}
++                        </p>
++                      </div>
+                     </div>
+-                    <div>
+-                      <h4 className="font-medium text-foreground">{college.name}</h4>
+-                      <p className="text-sm text-muted-foreground">{college.location}</p>
++                    <div className="flex items-center gap-3">
++                      <Badge variant={fitBadgeVariant(match.bucket)}>{fitBadgeLabel(match.bucket)}</Badge>
++                      <span className="text-lg font-semibold text-primary">{match.fit_score}%</span>
+                     </div>
+                   </div>
+-                  <div className="flex items-center gap-3">
+-                    <Badge variant={college.fitCategory}>
+-                      {college.fitCategory.charAt(0).toUpperCase() + college.fitCategory.slice(1)}
+-                    </Badge>
+-                    <span className="text-lg font-semibold text-primary">{college.fitScore}%</span>
+-                  </div>
+-                </div>
+-              ))}
+-            </div>
++                ))}
++              </div>
++            )}
+           </CardContent>
+         </Card>
+       </div>
+ 
+-      {/* Scholarships Section */}
++      {/* Scholarships Section — real scholarship_matches from DB */}
+       <Card>
+         <CardHeader className="flex flex-row items-center justify-between">
+           <div>
+             <CardTitle className="flex items-center gap-2">
+-              <Sparkles className="h-5 w-5 text-accent" />
+-              Scholarship Matches
++              <Sparkles className="h-5 w-5 text-accent" />Scholarship Matches
+             </CardTitle>
+             <CardDescription>Opportunities that fit your profile</CardDescription>
+           </div>
+           <Button variant="ghost" size="sm" asChild>
+-            <Link to="/scholarships">View All</Link>
++            <Link to="/scholarships-intel">View All</Link>
+           </Button>
+         </CardHeader>
+         <CardContent>
+-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+-            {mockScholarships.slice(0, 3).map((scholarship) => (
+-              <Card key={scholarship.id} variant="interactive" className="p-4">
+-                <div className="flex items-start justify-between mb-3">
+-                  <Badge variant="info" size="sm">{scholarship.eligibility}% Match</Badge>
+-                  <Badge variant={scholarship.effort === 'low' ? 'success' : scholarship.effort === 'medium' ? 'warning' : 'secondary'} size="sm">
+-                    {scholarship.effort} effort
+-                  </Badge>
+-                </div>
+-                <h4 className="font-semibold text-foreground mb-1">{scholarship.name}</h4>
+-                <p className="text-2xl font-bold text-primary mb-2">
+-                  ${scholarship.amount.toLocaleString()}
+-                </p>
+-                <p className="text-xs text-muted-foreground">
+-                  Deadline: {new Date(scholarship.deadline).toLocaleDateString()}
+-                </p>
+-              </Card>
+-            ))}
+-          </div>
++          {loading ? (
++            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
++              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
++            </div>
++          ) : scholarshipMatches.length === 0 ? (
++            <div className="text-center py-8 text-muted-foreground">
++              <Award className="h-10 w-10 mx-auto mb-3 opacity-40" />
++              <p className="text-sm font-medium">No scholarship matches yet.</p>
++              <p className="text-xs mt-1 max-w-xs mx-auto">
++                Complete your profile and visit Scholarships Intel to find opportunities you qualify for.
++              </p>
++              <Button variant="outline" size="sm" className="mt-4" asChild>
++                <Link to="/scholarships-intel">Find Scholarships</Link>
++              </Button>
++            </div>
++          ) : (
++            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
++              {scholarshipMatches.map((sm) => (
++                <Card key={sm.id} variant="interactive" className="p-4">
++                  <div className="flex items-start justify-between mb-3">
++                    <Badge variant="info" size="sm">{sm.score}% Match</Badge>
++                    {sm.scholarships?.deadline_date && (
++                      <span className="text-xs text-muted-foreground">
++                        Due {new Date(sm.scholarships.deadline_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
++                      </span>
++                    )}
++                  </div>
++                  <h4 className="font-semibold text-foreground mb-1 line-clamp-2">
++                    {sm.scholarships?.name ?? "Scholarship"}
++                  </h4>
++                  {(sm.scholarships?.amount_max_usd ?? sm.scholarships?.amount_usd) ? (
++                    <p className="text-2xl font-bold text-primary">
++                      {fmt(sm.scholarships?.amount_max_usd ?? sm.scholarships?.amount_usd ?? 0)}
++                    </p>
++                  ) : (
++                    <p className="text-sm text-muted-foreground">Amount varies</p>
++                  )}
++                </Card>
++              ))}
++            </div>
++          )}
+         </CardContent>
+       </Card>
+     </div>
+diff --git a/src/pages/HighFidelityDemo.tsx b/src/pages/HighFidelityDemo.tsx
+deleted file mode 100644
+index 461c904..0000000
+--- a/src/pages/HighFidelityDemo.tsx
++++ /dev/null
+@@ -1,31 +0,0 @@
+-import React from "react";
+-import { HighFidelityViewer } from "@/components/3d/HighFidelityViewer";
+-import { Button } from "@/components/ui/button";
+-import { useNavigate } from "react-router-dom";
+-import { ArrowLeft } from "lucide-react";
+-
+-const HighFidelityDemo: React.FC = () => {
+-  const navigate = useNavigate();
+-
+-  return (
+-    <div className="min-h-screen bg-background p-8">
+-      <div className="max-w-4xl mx-auto space-y-6">
+-        <div className="flex items-center gap-4">
+-          <Button variant="outline" size="sm" onClick={() => navigate("/")}>
+-            <ArrowLeft className="h-4 w-4 mr-1" />
+-            Back to R3F Viewer
+-          </Button>
+-        </div>
+-        <div className="text-center space-y-2">
+-          <h1 className="text-3xl font-bold">High-Fidelity 3D Viewer</h1>
+-          <p className="text-muted-foreground">
+-            Pure Three.js with HDR environment maps, GLTF loading, and CSS2D labels
+-          </p>
+-        </div>
+-        <HighFidelityViewer />
+-      </div>
+-    </div>
+-  );
+-};
+-
+-export default HighFidelityDemo;
+diff --git a/supabase/functions/calculate-match-scores/index.ts b/supabase/functions/calculate-match-scores/index.ts
+index 0d70c7d..9ef6131 100644
+--- a/supabase/functions/calculate-match-scores/index.ts
++++ b/supabase/functions/calculate-match-scores/index.ts
+@@ -29,10 +29,10 @@ serve(async (req) => {
+   try {
+     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
++    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+ 
+-    if (!lovableApiKey) {
+-      throw new Error("LOVABLE_API_KEY is not configured");
++    if (!openaiApiKey) {
++      throw new Error("OPENAI_API_KEY is not configured");
+     }
+ 
+     // Get auth token from request
+@@ -88,7 +88,7 @@ serve(async (req) => {
+ 
+       // Calculate scores for each scholarship using AI
+       for (const scholarship of scholarships || []) {
+-        const score = await calculateScholarshipScore(profile, scholarship, lovableApiKey);
++        const score = await calculateScholarshipScore(profile, scholarship, openaiApiKey);
+         results[scholarship.id] = score;
+         
+         // Store in database for caching
+@@ -112,7 +112,7 @@ serve(async (req) => {
+ 
+       // Calculate scores for each college using AI
+       for (const college of colleges || []) {
+-        const score = await calculateCollegeScore(profile, college, lovableApiKey);
++        const score = await calculateCollegeScore(profile, college, openaiApiKey);
+         results[college.id] = score;
+         
+         // Determine bucket based on score
+@@ -213,14 +213,14 @@ SCHOLARSHIP:
+ 
+ Analyze eligibility and provide a match score.`;
+ 
+-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
++  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+     method: "POST",
+     headers: {
+       "Authorization": `Bearer ${apiKey}`,
+       "Content-Type": "application/json",
+     },
+     body: JSON.stringify({
+-      model: "google/gemini-3-flash-preview",
++      model: "gpt-4o-mini",
+       messages: [
+         { role: "system", content: systemPrompt },
+         { role: "user", content: userPrompt },
+@@ -343,14 +343,14 @@ COLLEGE:
+ 
+ Analyze admission chances and fit.`;
+ 
+-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
++  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+     method: "POST",
+     headers: {
+       "Authorization": `Bearer ${apiKey}`,
+       "Content-Type": "application/json",
+     },
+     body: JSON.stringify({
+-      model: "google/gemini-3-flash-preview",
++      model: "gpt-4o-mini",
+       messages: [
+         { role: "system", content: systemPrompt },
+         { role: "user", content: userPrompt },
+-- 
+2.34.1
+
