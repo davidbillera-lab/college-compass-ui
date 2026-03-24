@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
@@ -74,12 +74,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const useAnthropic = !!ANTHROPIC_API_KEY;
-
-    if (!ANTHROPIC_API_KEY && !OPENAI_API_KEY) {
-      throw new Error("No AI API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in Supabase secrets.");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const { essayText, prompt, action = "chat", messages } = await req.json();
@@ -88,7 +85,7 @@ Deno.serve(async (req: Request) => {
       throw new Error("essayText, prompt, or messages is required");
     }
 
-    logStep("Processing request", { action, useAnthropic, hasEssay: !!essayText });
+    logStep("Processing request", { action });
 
     const systemPrompt = SYSTEM_PROMPTS[action] || SYSTEM_PROMPTS.chat;
 
@@ -101,71 +98,37 @@ Deno.serve(async (req: Request) => {
       userMessage = essayText || prompt || "";
     }
 
-    let feedback = "";
-
-    if (useAnthropic) {
-      const anthropicMessages: { role: string; content: string }[] = [];
-      if (messages && messages.length > 1) {
-        for (const msg of messages.slice(0, -1)) {
-          anthropicMessages.push({ role: msg.role, content: msg.content });
-        }
+    const openaiMessages: { role: string; content: string }[] = [
+      { role: "system", content: systemPrompt },
+    ];
+    if (messages && messages.length > 1) {
+      for (const msg of messages.slice(0, -1)) {
+        openaiMessages.push({ role: msg.role, content: msg.content });
       }
-      anthropicMessages.push({ role: "user", content: userMessage });
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY!,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-3-5-haiku-20241022",
-          max_tokens: 2048,
-          system: systemPrompt,
-          messages: anthropicMessages,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        logStep("Anthropic API error", { status: response.status, err });
-        throw new Error(`Anthropic API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      feedback = data.content?.[0]?.text || "";
-    } else {
-      const openaiMessages: { role: string; content: string }[] = [{ role: "system", content: systemPrompt }];
-      if (messages && messages.length > 1) {
-        for (const msg of messages.slice(0, -1)) {
-          openaiMessages.push({ role: msg.role, content: msg.content });
-        }
-      }
-      openaiMessages.push({ role: "user", content: userMessage });
-
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: openaiMessages,
-          max_tokens: 2048,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.text();
-        logStep("OpenAI API error", { status: response.status, err });
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      feedback = data.choices?.[0]?.message?.content || "";
     }
+    openaiMessages.push({ role: "user", content: userMessage });
+
+    const response = await fetch("https://ai-gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: openaiMessages,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      logStep("AI Gateway error", { status: response.status, err });
+      throw new Error(`AI Gateway error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const feedback = data.choices?.[0]?.message?.content || "";
 
     if (!feedback) throw new Error("No response from AI service");
 
