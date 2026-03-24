@@ -1,196 +1,180 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[ESSAY-COACH] ${step}${detailsStr}`);
+const logStep = (step: string, details?: Record<string, unknown>) => {
+  console.log(`[essay-coach] ${step}`, details ? JSON.stringify(details) : "");
 };
 
-// Premium product ID - users must be subscribed to access this feature
-const PREMIUM_PRODUCT_ID = "prod_TwKv99TtmRbLfO";
+const SYSTEM_PROMPTS: Record<string, string> = {
+  review: `You are an experienced college admissions essay coach. Give honest, specific, and encouraging feedback.
 
-serve(async (req) => {
+CRITICAL RULES:
+- Preserve the student's unique voice, tone, and personality. Never rewrite their sentences to sound like an adult or AI.
+- Teach the student WHY a change improves the essay, not just what to change.
+- Flag run-on sentences, grammar errors, and spelling mistakes with the exact location and a brief explanation.
+- Identify the 2-3 strongest moments and explain why they work.
+- Identify the 1-2 weakest moments and give a concrete suggestion.
+- Never use generic praise — be specific.
+- End with one actionable next step.
+
+Format your response with these sections:
+## What's Working
+## What Needs Attention
+## Grammar & Style Notes
+## Your Next Step`,
+
+  grammar: `You are a careful editor helping a student polish their college application essay.
+
+CRITICAL RULES:
+- Fix grammar, punctuation, spelling, and run-on sentences.
+- Keep the student's exact voice, vocabulary level, and sentence rhythm. Do NOT upgrade their vocabulary or make it sound more formal.
+- For each change, show: the original text → the corrected text, and a one-line explanation.
+- If a sentence is awkward but grammatically correct, note it as a suggestion, not a required fix.
+- The goal is that the essay reads as naturally written by a teenager — not by an AI or an adult.
+
+Format your response as:
+## Corrections
+(list each change as: "Original: [text]" → "Corrected: [text]" — Reason: [brief explanation])
+
+## Style Suggestions (Optional)`,
+
+  improve: `You are a college admissions essay coach helping a student strengthen a specific section.
+
+CRITICAL RULES:
+- Preserve the student's voice completely. Suggestions should sound like a better version of THEM.
+- Give 2-3 specific, concrete suggestions for this section.
+- For each suggestion, explain the "why" — what admissions officers look for and why this change helps.
+- If the student is "telling" instead of "showing," give a specific example of how to show the same idea.
+- Do not rewrite the whole section — give targeted suggestions the student can implement themselves.`,
+
+  brainstorm: `You are a college admissions essay coach helping a student find their best story.
+
+Your job:
+- Suggest 3-5 specific essay angles based on what the student has shared.
+- For each angle, explain why it would be compelling to an admissions officer.
+- Remind the student that the best essays are specific and personal — not about big achievements, but about moments of genuine reflection or growth.
+- Help them identify the "so what" — what does this story reveal about who they are?`,
+
+  chat: `You are a friendly, knowledgeable college admissions essay coach having a conversation with a student.
+
+CRITICAL RULES:
+- Be warm, encouraging, and direct.
+- Answer questions about college essays, the application process, and writing.
+- If the student shares essay text, give specific feedback that preserves their voice.
+- Keep responses focused and practical — no fluff.`,
+};
+
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-
   try {
-    logStep("Function started");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const useAnthropic = !!ANTHROPIC_API_KEY;
 
-    // Verify user is authenticated
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
-
-    // Verify premium subscription
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+    if (!ANTHROPIC_API_KEY && !OPENAI_API_KEY) {
+      throw new Error("No AI API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in Supabase secrets.");
     }
 
-    const customerId = customers.data[0].id;
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+    const { essayText, prompt, action = "chat", messages } = await req.json();
 
-    if (subscriptions.data.length === 0) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+    if (!essayText && !prompt && (!messages || messages.length === 0)) {
+      throw new Error("essayText, prompt, or messages is required");
     }
 
-    // Verify it's the premium product
-    const productId = subscriptions.data[0].items.data[0].price.product;
-    if (productId !== PREMIUM_PRODUCT_ID) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
+    logStep("Processing request", { action, useAnthropic, hasEssay: !!essayText });
 
-    logStep("Premium subscription verified");
-
-    // Parse request body
-    const { essayText, prompt, action } = await req.json();
-    
-    if (!essayText && !prompt) {
-      throw new Error("Either essayText or prompt is required");
-    }
-
-    logStep("Processing essay request", { action, hasEssay: !!essayText });
-
-    // Build the system prompt for essay coaching
-    const systemPrompt = `You are an expert college admissions essay coach with decades of experience helping students get into top universities. You provide thoughtful, specific, and actionable feedback.
-
-Your approach:
-- Be encouraging but honest
-- Focus on the student's unique voice and story
-- Suggest specific improvements, not just general advice
-- Help students show rather than tell
-- Ensure essays answer the prompt effectively
-- Check for authenticity and genuine reflection
-
-When reviewing essays:
-1. Comment on the overall narrative and structure
-2. Identify the strongest parts to build on
-3. Point out areas that need more depth or clarity
-4. Suggest concrete ways to improve weak sections
-5. Check that the essay reveals something meaningful about the student
-
-Keep responses focused and actionable. Use bullet points for specific feedback.`;
+    const systemPrompt = SYSTEM_PROMPTS[action] || SYSTEM_PROMPTS.chat;
 
     let userMessage = "";
-    
-    switch (action) {
-      case "review":
-        userMessage = `Please review this college application essay and provide detailed feedback:\n\n${essayText}`;
-        break;
-      case "brainstorm":
-        userMessage = `Help me brainstorm ideas for a college essay. Here's what I'm thinking about:\n\n${prompt}`;
-        break;
-      case "improve":
-        userMessage = `Please suggest specific improvements for this essay section:\n\n${essayText}`;
-        break;
-      case "grammar":
-        userMessage = `Please check this essay for grammar, style, and clarity issues:\n\n${essayText}`;
-        break;
-      default:
-        userMessage = prompt || `Please review this essay:\n\n${essayText}`;
+    if (action === "brainstorm") {
+      userMessage = prompt || essayText || "";
+    } else if (action === "chat") {
+      userMessage = messages?.[messages.length - 1]?.content || prompt || essayText || "";
+    } else {
+      userMessage = essayText || prompt || "";
     }
 
-    // Call Lovable AI Gateway
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    let feedback = "";
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-5.2", // Using high-quality model for essay feedback
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        stream: false,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "AI rate limit exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    if (useAnthropic) {
+      const anthropicMessages: { role: string; content: string }[] = [];
+      if (messages && messages.length > 1) {
+        for (const msg of messages.slice(0, -1)) {
+          anthropicMessages.push({ role: msg.role, content: msg.content });
+        }
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI usage limit reached." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      anthropicMessages.push({ role: "user", content: userMessage });
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY!,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-haiku-20241022",
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: anthropicMessages,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        logStep("Anthropic API error", { status: response.status, err });
+        throw new Error(`Anthropic API error: ${response.status}`);
       }
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error("AI service temporarily unavailable");
+
+      const data = await response.json();
+      feedback = data.content?.[0]?.text || "";
+    } else {
+      const openaiMessages: { role: string; content: string }[] = [{ role: "system", content: systemPrompt }];
+      if (messages && messages.length > 1) {
+        for (const msg of messages.slice(0, -1)) {
+          openaiMessages.push({ role: msg.role, content: msg.content });
+        }
+      }
+      openaiMessages.push({ role: "user", content: userMessage });
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: openaiMessages,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        logStep("OpenAI API error", { status: response.status, err });
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      feedback = data.choices?.[0]?.message?.content || "";
     }
 
-    const aiData = await aiResponse.json();
-    const feedback = aiData.choices?.[0]?.message?.content;
+    if (!feedback) throw new Error("No response from AI service");
 
-    if (!feedback) {
-      throw new Error("No response from AI service");
-    }
+    logStep("Essay feedback generated successfully", { action, length: feedback.length });
 
-    logStep("Essay feedback generated successfully");
-
-    return new Response(JSON.stringify({ 
-      feedback,
-      action 
-    }), {
+    return new Response(JSON.stringify({ feedback, action }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in essay-coach", { message: errorMessage });
