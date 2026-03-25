@@ -372,7 +372,7 @@ export default function Essays() {
 
         <TabsContent value="coach" className="mt-6">
           <div className="max-w-2xl">
-            <EssayCoach />
+            <EssayCoach initialEssayText={coachEssayText} />
           </div>
         </TabsContent>
       </Tabs>
