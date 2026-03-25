@@ -55,6 +55,8 @@ const statusVariant: Record<EssayStatus, "secondary" | "default" | "success"> = 
 };
 
 export default function Essays() {
+  const [activeTab, setActiveTab] = useState("essays");
+  const [coachEssayText, setCoachEssayText] = useState("");
   const [essays, setEssays] = useState<Essay[]>(() =>
     mockEssays.map((e) => ({
       ...e,
@@ -72,6 +74,11 @@ export default function Essays() {
     type: "personal_statement" as EssayType,
     prompt: "",
   });
+
+  const handleSendToCoach = (text: string) => {
+    setCoachEssayText(text);
+    setActiveTab("coach");
+  };
 
   const handleCreateEssay = () => {
     if (!newEssay.title.trim()) return;
