@@ -28,6 +28,7 @@ import SharedPortfolioPage from "./pages/SharedPortfolioPage";
 import ApplicationTrackerPage from "./pages/ApplicationTrackerPage";
 import DeadlineHubPage from "./pages/DeadlineHubPage";
 import LandingPage from "./pages/LandingPage";
+import PricingPage from "./pages/PricingPage";
 import ParentDashboard from "./pages/ParentDashboard";
 import AdminMonitoringPage from "./pages/AdminMonitoringPage";
 
@@ -96,6 +97,7 @@ export default function App() {
                   <Route path="/deadlines" element={<DeadlineHubPage />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
+                  <Route path="/pricing" element={<PricingPage />} />
                 </Route>
               </Route>
               

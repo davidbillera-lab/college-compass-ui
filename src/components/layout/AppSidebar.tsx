@@ -19,6 +19,7 @@ import {
   FolderOpen,
   CalendarDays,
   TrendingUp,
+  Crown,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { href: "/portfolio", label: "My Portfolio", icon: FolderOpen, roles: ['student'] },
   { href: "/applications", label: "Application Tracker", icon: TrendingUp, roles: ['student'] },
   { href: "/deadlines", label: "Deadline Hub", icon: CalendarDays, roles: ['student'] },
+  { href: "/pricing", label: "Upgrade", icon: Crown, roles: ['student', 'parent'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];
 

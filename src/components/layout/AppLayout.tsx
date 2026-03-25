@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { TopNavbar } from "./TopNavbar";
 import { AppSidebar } from "./AppSidebar";
+import { TrialBanner } from "@/components/subscription/PremiumGate";
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -10,6 +11,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <TopNavbar onMenuClick={() => setSidebarOpen(true)} />
+      <TrialBanner />
       <div className="flex flex-1">
         <AppSidebar 
           mobileOpen={sidebarOpen} 
