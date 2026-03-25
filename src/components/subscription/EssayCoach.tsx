@@ -31,10 +31,14 @@ function MarkdownFeedback({ content }: { content: string }) {
   );
 }
 
-export function EssayCoach() {
+interface EssayCoachProps {
+  initialEssayText?: string;
+}
+
+export function EssayCoach({ initialEssayText }: EssayCoachProps = {}) {
   const { session } = useAuth();
   const [activeAction, setActiveAction] = useState<EssayAction>("review");
-  const [essayText, setEssayText] = useState("");
+  const [essayText, setEssayText] = useState(initialEssayText || "");
   const [prompt, setPrompt] = useState("");
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,6 +51,14 @@ export function EssayCoach() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialEssayText) {
+      setEssayText(initialEssayText);
+      setActiveAction("review");
+      setFeedback("");
+    }
+  }, [initialEssayText]);
 
   useEffect(() => {
     if (activeAction === "chat") {

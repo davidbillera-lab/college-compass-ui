@@ -55,6 +55,8 @@ const statusVariant: Record<EssayStatus, "secondary" | "default" | "success"> = 
 };
 
 export default function Essays() {
+  const [activeTab, setActiveTab] = useState("essays");
+  const [coachEssayText, setCoachEssayText] = useState("");
   const [essays, setEssays] = useState<Essay[]>(() =>
     mockEssays.map((e) => ({
       ...e,
@@ -72,6 +74,11 @@ export default function Essays() {
     type: "personal_statement" as EssayType,
     prompt: "",
   });
+
+  const handleSendToCoach = (text: string) => {
+    setCoachEssayText(text);
+    setActiveTab("coach");
+  };
 
   const handleCreateEssay = () => {
     if (!newEssay.title.trim()) return;
@@ -144,7 +151,7 @@ export default function Essays() {
         </div>
       </div>
 
-      <Tabs defaultValue="essays" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="essays" className="flex items-center gap-1.5">
             <FileText className="h-4 w-4" />
@@ -302,6 +309,17 @@ export default function Essays() {
                         <Pencil className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
+                      {selectedEssay.content && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-primary border-primary/30 hover:bg-primary/10"
+                          onClick={() => handleSendToCoach(selectedEssay.content)}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          AI Review
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -354,7 +372,7 @@ export default function Essays() {
 
         <TabsContent value="coach" className="mt-6">
           <div className="max-w-2xl">
-            <EssayCoach />
+            <EssayCoach initialEssayText={coachEssayText} />
           </div>
         </TabsContent>
       </Tabs>
