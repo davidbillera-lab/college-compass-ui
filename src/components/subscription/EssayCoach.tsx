@@ -38,7 +38,7 @@ interface EssayCoachProps {
 export function EssayCoach({ initialEssayText }: EssayCoachProps = {}) {
   const { session } = useAuth();
   const [activeAction, setActiveAction] = useState<EssayAction>("review");
-  const [essayText, setEssayText] = useState("");
+  const [essayText, setEssayText] = useState(initialEssayText || "");
   const [prompt, setPrompt] = useState("");
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
