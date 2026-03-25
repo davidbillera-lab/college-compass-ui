@@ -74,9 +74,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const { essayText, prompt, action = "chat", messages } = await req.json();
@@ -98,43 +98,37 @@ Deno.serve(async (req: Request) => {
       userMessage = essayText || prompt || "";
     }
 
-    const chatMessages: { role: string; content: string }[] = [];
+    const anthropicMessages: { role: string; content: string }[] = [];
     if (messages && messages.length > 1) {
       for (const msg of messages.slice(0, -1)) {
-        chatMessages.push({ role: msg.role, content: msg.content });
+        anthropicMessages.push({ role: msg.role, content: msg.content });
       }
     }
-    chatMessages.push({ role: "user", content: userMessage });
+    anthropicMessages.push({ role: "user", content: userMessage });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...chatMessages,
-        ],
+        model: "claude-haiku-4-5",
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: anthropicMessages,
       }),
     });
 
     if (!response.ok) {
       const err = await response.text();
-      logStep("AI gateway error", { status: response.status, err });
-      if (response.status === 429) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
-      }
-      if (response.status === 402) {
-        throw new Error("AI credits exhausted. Please add funds.");
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
+      logStep("Anthropic API error", { status: response.status, err });
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const feedback = data.choices?.[0]?.message?.content || "";
+    const feedback = data.content?.[0]?.text || "";
 
     if (!feedback) throw new Error("No response from AI service");
 
