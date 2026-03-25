@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Target, Award, CheckCircle2, Circle, ArrowRight,
   TrendingUp, GraduationCap, Sparkles, Calendar, AlertCircle,
-  FolderOpen,
+  FolderOpen, CalendarDays, ListChecks,
 } from "lucide-react";
 import { fetchMaterials, calcPortfolioCompleteness } from "@/lib/portfolioApi";
 import { Link } from "react-router-dom";
@@ -412,6 +412,50 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Application Tracking Quick Links */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card variant="interactive">
+          <CardContent className="py-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <ListChecks className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground text-sm">Application Tracker</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Track every application from interest to submission</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/applications">
+                  Open <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card variant="interactive">
+          <CardContent className="py-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <CalendarDays className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground text-sm">Deadline Hub</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">All college and scholarship deadlines in one place</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/deadlines">
+                  Open <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Scholarships Section — real scholarship_matches from DB */}
       <Card>

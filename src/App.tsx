@@ -25,6 +25,8 @@ import CollegeListsPage from "./pages/CollegeListsPage";
 import SharedListPage from "./pages/SharedListPage";
 import PortfolioPage from "./pages/PortfolioPage";
 import SharedPortfolioPage from "./pages/SharedPortfolioPage";
+import ApplicationTrackerPage from "./pages/ApplicationTrackerPage";
+import DeadlineHubPage from "./pages/DeadlineHubPage";
 import LandingPage from "./pages/LandingPage";
 import ParentDashboard from "./pages/ParentDashboard";
 import AdminMonitoringPage from "./pages/AdminMonitoringPage";
@@ -90,6 +92,8 @@ export default function App() {
                   <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
                   <Route path="/essays" element={<Essays />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />
+                  <Route path="/applications" element={<ApplicationTrackerPage />} />
+                  <Route path="/deadlines" element={<DeadlineHubPage />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
                 </Route>
