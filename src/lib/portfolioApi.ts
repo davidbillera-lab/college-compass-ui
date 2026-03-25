@@ -70,7 +70,7 @@ export async function deleteMaterial(id: string, fileUrl: string | null): Promis
 }
 
 export async function fetchMyPortfolioShare(userId: string): Promise<PortfolioShare | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("portfolio_shares")
     .select("*")
     .eq("user_id", userId)
@@ -87,7 +87,7 @@ export async function createPortfolioShare(
   label: string,
   options: { include_essays?: boolean; include_materials?: boolean; include_profile?: boolean }
 ): Promise<PortfolioShare> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("portfolio_shares")
     .insert({
       user_id: userId,
@@ -104,7 +104,7 @@ export async function createPortfolioShare(
 }
 
 export async function deactivatePortfolioShare(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("portfolio_shares")
     .update({ is_active: false })
     .eq("id", id);
@@ -117,7 +117,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   profile: Record<string, unknown> | null;
 } | null> {
   // Fetch the share record
-  const { data: share, error: shareError } = await supabase
+  const { data: share, error: shareError } = await (supabase as any)
     .from("portfolio_shares")
     .select("*")
     .eq("share_token", token)
@@ -129,7 +129,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   const portfolioShare = share as PortfolioShare;
 
   // Increment view count
-  await supabase
+  await (supabase as any)
     .from("portfolio_shares")
     .update({ view_count: portfolioShare.view_count + 1, last_viewed_at: new Date().toISOString() })
     .eq("id", portfolioShare.id);
