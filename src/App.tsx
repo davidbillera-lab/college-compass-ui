@@ -23,6 +23,8 @@ import ScholarshipsIntelPage from "./pages/ScholarshipsIntelPage";
 import ScholarshipsIntelAdminPage from "./pages/ScholarshipsIntelAdminPage";
 import CollegeListsPage from "./pages/CollegeListsPage";
 import SharedListPage from "./pages/SharedListPage";
+import PortfolioPage from "./pages/PortfolioPage";
+import SharedPortfolioPage from "./pages/SharedPortfolioPage";
 import LandingPage from "./pages/LandingPage";
 import ParentDashboard from "./pages/ParentDashboard";
 import AdminMonitoringPage from "./pages/AdminMonitoringPage";
@@ -69,6 +71,9 @@ export default function App() {
               {/* Public shared list page */}
               <Route path="/shared-list/:shareToken" element={<SharedListPage />} />
               
+              {/* Public shared portfolio page */}
+              <Route path="/shared-portfolio/:shareToken" element={<SharedPortfolioPage />} />
+              
               {/* Protected app routes with sidebar layout */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
@@ -84,6 +89,7 @@ export default function App() {
                   <Route path="/scholarships-intel" element={<ScholarshipsIntelPage />} />
                   <Route path="/scholarships-intel/admin" element={<ScholarshipsIntelAdminPage />} />
                   <Route path="/essays" element={<Essays />} />
+                  <Route path="/portfolio" element={<PortfolioPage />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
                 </Route>

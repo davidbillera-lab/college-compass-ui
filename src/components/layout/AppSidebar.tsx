@@ -16,6 +16,7 @@ import {
   Search,
   Library,
   Users,
+  FolderOpen,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { href: "/colleges", label: "College Fit", icon: GraduationCap, roles: ['student', 'parent'] },
   { href: "/scholarships", label: "Scholarships", icon: Award, roles: ['student', 'parent'] },
   { href: "/essays", label: "Essays & Story", icon: FileText, roles: ['student'] },
+  { href: "/portfolio", label: "My Portfolio", icon: FolderOpen, roles: ['student'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];
 

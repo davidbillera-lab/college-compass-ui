@@ -12,7 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Target, Award, CheckCircle2, Circle, ArrowRight,
   TrendingUp, GraduationCap, Sparkles, Calendar, AlertCircle,
+  FolderOpen,
 } from "lucide-react";
+import { fetchMaterials, calcPortfolioCompleteness } from "@/lib/portfolioApi";
 import { Link } from "react-router-dom";
 
 const ProfileCompletionWizard = React.lazy(() =>
@@ -79,6 +81,8 @@ export default function Dashboard() {
   const [tasks, setTasks] = React.useState<TaskRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [portfolioScore, setPortfolioScore] = React.useState(0);
+  const [portfolioCount, setPortfolioCount] = React.useState(0);
 
   React.useEffect(() => {
     if (!user) return;
@@ -112,6 +116,16 @@ export default function Dashboard() {
         if (cmRes.error) throw cmRes.error;
         if (smRes.error) throw smRes.error;
         if (taskRes.error) throw taskRes.error;
+
+        // Portfolio completeness
+        try {
+          const mats = await fetchMaterials(user!.id);
+          const { score } = calcPortfolioCompleteness(mats);
+          setPortfolioScore(score);
+          setPortfolioCount(mats.length);
+        } catch {
+          // non-critical, ignore
+        }
 
         const colleges = (cmRes.data ?? []) as unknown as CollegeMatchRow[];
         const scholarships = (smRes.data ?? []) as unknown as ScholarshipMatchRow[];
@@ -360,6 +374,44 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Portfolio Completeness Widget */}
+      <Card variant="interactive">
+        <CardContent className="py-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <FolderOpen className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-sm">Application Portfolio</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {portfolioCount > 0
+                    ? `${portfolioCount} material${portfolioCount !== 1 ? 's' : ''} uploaded · ${portfolioScore}% of priority categories filled`
+                    : 'Upload transcripts, awards, activities, and more'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {portfolioCount > 0 && (
+                <div className="text-right hidden sm:block">
+                  <span className="text-2xl font-bold text-primary">{portfolioScore}%</span>
+                  <p className="text-xs text-muted-foreground">complete</p>
+                </div>
+              )}
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/portfolio">
+                  {portfolioCount > 0 ? 'View Portfolio' : 'Start Portfolio'}
+                  <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+          {portfolioCount > 0 && (
+            <Progress value={portfolioScore} className="h-1.5 mt-4" />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Scholarships Section — real scholarship_matches from DB */}
       <Card>
