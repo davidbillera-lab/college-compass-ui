@@ -31,7 +31,11 @@ function MarkdownFeedback({ content }: { content: string }) {
   );
 }
 
-export function EssayCoach() {
+interface EssayCoachProps {
+  initialEssayText?: string;
+}
+
+export function EssayCoach({ initialEssayText }: EssayCoachProps = {}) {
   const { session } = useAuth();
   const [activeAction, setActiveAction] = useState<EssayAction>("review");
   const [essayText, setEssayText] = useState("");
