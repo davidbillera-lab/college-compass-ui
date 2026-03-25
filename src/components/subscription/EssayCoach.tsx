@@ -53,6 +53,14 @@ export function EssayCoach({ initialEssayText }: EssayCoachProps = {}) {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (initialEssayText) {
+      setEssayText(initialEssayText);
+      setActiveAction("review");
+      setFeedback("");
+    }
+  }, [initialEssayText]);
+
+  useEffect(() => {
     if (activeAction === "chat") {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
