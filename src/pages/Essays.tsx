@@ -309,6 +309,17 @@ export default function Essays() {
                         <Pencil className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
+                      {selectedEssay.content && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-primary border-primary/30 hover:bg-primary/10"
+                          onClick={() => handleSendToCoach(selectedEssay.content)}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          AI Review
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
