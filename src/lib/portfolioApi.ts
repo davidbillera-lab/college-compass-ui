@@ -148,7 +148,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   // Fetch profile if included
   let profile: Record<string, unknown> | null = null;
   if (portfolioShare.include_profile) {
-    const { data: prof } = await supabase
+    const { data: prof } = await (supabase as any)
       .from("profiles")
       .select("full_name, grad_year, gpa_unweighted, gpa_weighted, sat_score, act_score, intended_majors, budget_max_usd")
       .eq("user_id", portfolioShare.user_id)
