@@ -151,7 +151,7 @@ export default function Essays() {
         </div>
       </div>
 
-      <Tabs defaultValue="essays" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="essays" className="flex items-center gap-1.5">
             <FileText className="h-4 w-4" />
