@@ -145,7 +145,7 @@ export async function fetchChecklist(
   studentId: string,
   collegeId: string
 ): Promise<ChecklistItem[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("application_checklist_items")
     .select("*")
     .eq("student_id", studentId)
@@ -170,7 +170,7 @@ export async function seedChecklist(
     college_id: collegeId,
   }));
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("application_checklist_items")
     .insert(rows)
     .select();
@@ -183,7 +183,7 @@ export async function toggleChecklistItem(
   itemId: string,
   completed: boolean
 ): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("application_checklist_items")
     .update({
       completed_at: completed ? new Date().toISOString() : null,
@@ -197,7 +197,7 @@ export async function updateChecklistItemDue(
   itemId: string,
   dueDate: string | null
 ): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("application_checklist_items")
     .update({ due_date: dueDate, updated_at: new Date().toISOString() })
     .eq("id", itemId);
