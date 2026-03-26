@@ -40,7 +40,7 @@ type AnalysisType = "review" | "gaps" | "strengths" | "comprehensive";
 
 export function AIApplicationAdvisor({ materials, selectedMaterial, onClose }: AIApplicationAdvisorProps) {
   const { session } = useAuth();
-  const { isPremium, openCheckout } = useSubscription();
+  const { isPremium, hasAccess, openCheckout } = useSubscription();
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisType, setAnalysisType] = useState<AnalysisType>("comprehensive");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function AIApplicationAdvisor({ materials, selectedMaterial, onClose }: A
       return;
     }
 
-    if (!isPremium) {
+    if (!hasAccess) {
       toast.error("Premium subscription required for AI analysis");
       return;
     }
@@ -130,7 +130,7 @@ export function AIApplicationAdvisor({ materials, selectedMaterial, onClose }: A
     }
   };
 
-  if (!isPremium) {
+  if (!hasAccess) {
     return (
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="text-center pb-4">

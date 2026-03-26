@@ -151,7 +151,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
     const { data: prof } = await (supabase as any)
       .from("profiles")
       .select("full_name, grad_year, gpa_unweighted, gpa_weighted, sat_score, act_score, intended_majors, budget_max_usd")
-      .eq("user_id", portfolioShare.user_id)
+      .eq("id", portfolioShare.user_id)
       .maybeSingle();
     profile = prof as Record<string, unknown> | null;
   }

@@ -46,7 +46,7 @@ export default function CollegeLibraryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { scores, loading: aiLoading, calculateCollegeScores, getScore } = useAIMatchScores();
-  const { isPremium, openCheckout, loading: subscriptionLoading } = useSubscription();
+  const { isPremium, hasAccess, openCheckout, loading: subscriptionLoading } = useSubscription();
 
   const { data: colleges = [], isLoading } = useQuery({
     queryKey: ["colleges-library"],
@@ -127,7 +127,7 @@ export default function CollegeLibraryPage() {
 
   // Function to calculate AI scores for visible colleges (premium only)
   const calculateVisibleScores = () => {
-    if (!isPremium) {
+    if (!hasAccess) {
       toast.info("AI Admission Odds is a Premium feature", {
         action: {
           label: "Upgrade",
@@ -143,7 +143,7 @@ export default function CollegeLibraryPage() {
 
   // Handle individual college score calculation (premium only)
   const handleCalculateScore = (collegeId: string) => {
-    if (!isPremium) {
+    if (!hasAccess) {
       toast.info("AI Admission Odds is a Premium feature", {
         action: {
           label: "Upgrade",
@@ -325,7 +325,7 @@ export default function CollegeLibraryPage() {
                 </span>
                 {!isLoading && filteredColleges.length > 0 && (
                   <Button
-                    variant={isPremium ? "outline" : "default"}
+                    variant={hasAccess ? "outline" : "default"}
                     size="sm"
                     onClick={calculateVisibleScores}
                     disabled={aiLoading}
@@ -333,12 +333,12 @@ export default function CollegeLibraryPage() {
                   >
                     {aiLoading ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : isPremium ? (
+                    ) : hasAccess ? (
                       <Sparkles className="h-3.5 w-3.5 text-primary" />
                     ) : (
                       <Crown className="h-3.5 w-3.5" />
                     )}
-                    {aiLoading ? "Calculating..." : isPremium ? "Get AI Admission Odds" : "Upgrade for AI Odds"}
+                    {aiLoading ? "Calculating..." : hasAccess ? "Get AI Admission Odds" : "Upgrade for AI Odds"}
                   </Button>
                 )}
               </div>
@@ -401,11 +401,11 @@ export default function CollegeLibraryPage() {
                 {/* AI Match Score - Premium feature */}
                 <div onClick={(e) => e.stopPropagation()}>
                   <AIMatchScoreBadge
-                    score={isPremium ? getScore(college.id) : undefined}
+                    score={hasAccess ? getScore(college.id) : undefined}
                     loading={aiLoading}
                     onCalculate={() => handleCalculateScore(college.id)}
                     compact
-                    locked={!isPremium}
+                    locked={!hasAccess}
                   />
                 </div>
 
