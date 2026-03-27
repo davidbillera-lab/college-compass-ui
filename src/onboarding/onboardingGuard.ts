@@ -1,42 +1,50 @@
-import { computeProfileSnapshot } from "@/lib/profileUtils";
-import { ensureProfileRow } from "@/lib/profileExtrasApi";
+// DO NOT EDIT VIA LOVABLE
+import { supabase } from "@/integrations/supabase/client";
 
 export type OnboardingStep =
   | "welcome"
   | "basics"
-  | "story"
+  | "academics"
+  | "financial"
   | "activities"
+  | "story"
   | "results";
 
 export async function getNextOnboardingStep(): Promise<OnboardingStep> {
-  const profile: any = await ensureProfileRow();
-  const snap = computeProfileSnapshot(profile);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return "welcome";
 
-  // Keep it simple: if missing basics, go basics. If missing story, go story. If <2 activities, go activities.
-  const needsBasics =
-    !profile.intended_major ||
-    !profile.regions ||
-    (!profile.budget_max_usd && !profile.campus_size);
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
 
-  const needsStory =
-    !profile.values ||
-    !profile.proud_moment ||
-    !profile.impact;
+  if (!prof) return "basics";
 
-  const activityCount = snap.activityCount ?? 0;
-  const needsActivities = activityCount < 2;
+  const needsBasics = !prof.graduation_year || !prof.region || !prof.intended_majors?.length;
+  const needsAcademics = !prof.gpa_unweighted && !prof.sat_score && !prof.act_score;
+  const needsFinancial = prof.financial_need === null || prof.financial_need === undefined;
+  const needsActivities = !prof.volunteer_hours && !prof.leadership_roles?.length && !prof.awards?.length;
+  const needsStory = !prof.proud_moment && !prof.impact;
 
-  // Welcome is optional once they have anything started
   if (needsBasics) return "basics";
-  if (needsStory) return "story";
+  if (needsAcademics) return "academics";
+  if (needsFinancial) return "financial";
   if (needsActivities) return "activities";
+  if (needsStory) return "story";
   return "results";
 }
 
-export function stepToPath(step: OnboardingStep) {
-  if (step === "welcome") return "/welcome";
-  if (step === "basics") return "/onboarding/basics";
-  if (step === "story") return "/onboarding/story";
-  if (step === "activities") return "/onboarding/activities";
-  return "/onboarding/results";
+export function stepToPath(step: OnboardingStep): string {
+  const paths: Record<OnboardingStep, string> = {
+    welcome: "/welcome",
+    basics: "/onboarding/basics",
+    academics: "/onboarding/academics",
+    financial: "/onboarding/financial",
+    activities: "/onboarding/activities",
+    story: "/onboarding/story",
+    results: "/onboarding/results",
+  };
+  return paths[step];
 }

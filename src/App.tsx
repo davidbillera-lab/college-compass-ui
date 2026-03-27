@@ -38,6 +38,8 @@ import OnboardingBasicsPage from "./onboarding/OnboardingBasicsPage";
 import OnboardingStoryPage from "./onboarding/OnboardingStoryPage";
 import OnboardingActivitiesPage from "./onboarding/OnboardingActivitiesPage";
 import OnboardingResultsPage from "./onboarding/OnboardingResultsPage";
+import OnboardingAcademicsPage from "./onboarding/OnboardingAcademicsPage";
+import OnboardingFinancialPage from "./onboarding/OnboardingFinancialPage";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,8 @@ export default function App() {
               <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/onboarding/basics" element={<OnboardingBasicsPage />} />
               <Route path="/onboarding/story" element={<OnboardingStoryPage />} />
+              <Route path="/onboarding/academics" element={<OnboardingAcademicsPage />} />
+              <Route path="/onboarding/financial" element={<OnboardingFinancialPage />} />
               <Route path="/onboarding/activities" element={<OnboardingActivitiesPage />} />
               <Route path="/onboarding/results" element={<OnboardingResultsPage />} />
               
