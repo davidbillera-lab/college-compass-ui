@@ -47,52 +47,48 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id });
 
-    // Verify premium subscription
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    // Check subscription: allow 7-day free trial OR active premium subscription
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("created_at")
+      .eq("id", user.id)
+      .single();
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
+    const trialDays = 7;
+    const profileCreatedAt = profile?.created_at ? new Date(profile.created_at) : new Date();
+    const trialEndsAt = new Date(profileCreatedAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
+    const isInTrial = new Date() < trialEndsAt;
+
+    if (!isInTrial) {
+      // Check Stripe subscription
+      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+      if (stripeKey) {
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+        let hasPremium = false;
+
+        if (customers.data.length > 0) {
+          const customerId = customers.data[0].id;
+          const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+          if (subscriptions.data.length > 0) {
+            const productId = subscriptions.data[0].items.data[0].price.product;
+            hasPremium = productId === PREMIUM_PRODUCT_ID;
+          }
+        }
+
+        if (!hasPremium) {
+          return new Response(JSON.stringify({ 
+            error: "Premium subscription required",
+            code: "SUBSCRIPTION_REQUIRED" 
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 403,
+          });
+        }
+      }
     }
 
-    const customerId = customers.data[0].id;
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-
-    if (subscriptions.data.length === 0) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    const productId = subscriptions.data[0].items.data[0].price.product;
-    if (productId !== PREMIUM_PRODUCT_ID) {
-      return new Response(JSON.stringify({ 
-        error: "Premium subscription required",
-        code: "SUBSCRIPTION_REQUIRED" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 403,
-      });
-    }
-
-    logStep("Premium subscription verified");
+    logStep("Access granted", { isInTrial, trialEndsAt });
 
     // Parse request body
     const { action, materialId, content, materials, profileData } = await req.json();
