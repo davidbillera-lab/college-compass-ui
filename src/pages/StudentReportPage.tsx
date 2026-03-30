@@ -1,0 +1,159 @@
+import React, { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, FileText, Download, AlertCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import AppLayout from '@/components/layout/AppLayout';
+import { useToast } from '@/components/ui/use-toast';
+
+export default function StudentReportPage() {
+  const [report, setReport] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const generateReport = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-student-report`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to generate report');
+      }
+
+      const data = await response.json();
+      setReport(data.report);
+      
+      toast({
+        title: "Report Generated",
+        description: "Your personalized student report is ready.",
+      });
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+      toast({
+        title: "Generation Failed",
+        description: err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!report) return;
+    
+    // In a full production app, this would use a library like html2pdf.js or jspdf
+    // For now, we'll download it as a markdown file which is universally readable
+    const blob = new Blob([report], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'College_Compass_Student_Report.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Downloaded",
+      description: "Report downloaded as Markdown. (PDF export coming soon!)",
+    });
+  };
+
+  return (
+    <AppLayout>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Student Action Report</h1>
+            <p className="text-slate-500 mt-2">
+              Get an honest, AI-generated assessment of your profile, college matches, and strategy.
+            </p>
+          </div>
+          {report && (
+            <Button onClick={handleDownload} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" /> Download
+            </Button>
+          )}
+        </div>
+
+        {!report && !loading && (
+          <Card className="border-emerald-100 bg-emerald-50/50">
+            <CardContent className="pt-6 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
+                <FileText className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-emerald-900">Ready to see where you stand?</h3>
+              <p className="text-emerald-700 max-w-lg">
+                Our AI counselor will analyze your GPA, test scores, background, and college list to give you completely honest feedback and a concrete action plan.
+              </p>
+              <Button 
+                onClick={generateReport} 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white mt-4"
+                size="lg"
+              >
+                Generate My Report
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading && (
+          <Card>
+            <CardContent className="pt-12 pb-12 flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+              <h3 className="text-lg font-medium text-slate-900">Analyzing your profile...</h3>
+              <p className="text-slate-500 text-center max-w-md">
+                Reviewing your academic stats, extracurriculars, and financial needs against your college matches. This takes about 15 seconds.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-6 flex flex-col items-center text-center space-y-4">
+              <AlertCircle className="w-10 h-10 text-red-500" />
+              <h3 className="text-lg font-medium text-red-900">Something went wrong</h3>
+              <p className="text-red-700">{error}</p>
+              <Button onClick={generateReport} variant="outline" className="mt-2">
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {report && (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+              <CardTitle>Your Personalized Strategy</CardTitle>
+              <CardDescription>Based on your latest profile data and matches</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="prose prose-slate prose-emerald max-w-none prose-headings:font-semibold prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-xl prose-p:text-slate-700 prose-li:text-slate-700">
+                <ReactMarkdown>{report}</ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </AppLayout>
+  );
+}

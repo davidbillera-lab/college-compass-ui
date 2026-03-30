@@ -32,6 +32,7 @@ import PricingPage from "./pages/PricingPage";
 import ParentDashboard from "./pages/ParentDashboard";
 import AdminMonitoringPage from "./pages/AdminMonitoringPage";
 import PracticeTestPage from "./pages/PracticeTestPage";
+import StudentReportPage from "./pages/StudentReportPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -104,6 +105,7 @@ export default function App() {
                   <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/practice-tests" element={<PracticeTestPage />} />
+                  <Route path="/report" element={<StudentReportPage />} />
                 </Route>
               </Route>
               

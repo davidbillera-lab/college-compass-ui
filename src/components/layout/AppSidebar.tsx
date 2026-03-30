@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Crown,
   Brain,
+  LineChart,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -34,6 +35,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ['student', 'parent', 'counselor'] },
+  { href: "/report", label: "Action Report", icon: LineChart, badge: "AI", roles: ['student', 'parent', 'counselor'] },
   { href: "/parent", label: "Parent View", icon: Users, roles: ['parent'] },
   { href: "/profile", label: "Profile Builder", icon: User, roles: ['student'] },
   { href: "/discovery", label: "Discovery", icon: Search, badge: "New", roles: ['student', 'parent'] },
