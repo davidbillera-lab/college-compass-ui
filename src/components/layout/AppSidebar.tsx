@@ -22,6 +22,12 @@ import {
   Crown,
   Brain,
   LineChart,
+  DollarSign,
+  BarChart3,
+  Mail,
+  CheckSquare,
+  Compass,
+  Star,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -47,6 +53,12 @@ const navItems: NavItem[] = [
   { href: "/applications", label: "Application Tracker", icon: TrendingUp, roles: ['student'] },
   { href: "/deadlines", label: "Deadline Hub", icon: CalendarDays, roles: ['student'] },
   { href: "/practice-tests", label: "SAT/ACT Practice", icon: Brain, roles: ['student'] },
+  { href: "/career-assessment", label: "Career Assessment", icon: Compass, badge: "New", roles: ['student'] },
+  { href: "/task-timeline", label: "Task Timeline", icon: CheckSquare, roles: ['student'] },
+  { href: "/brag-sheet", label: "Brag Sheet & Strategy", icon: Star, roles: ['student'] },
+  { href: "/financial-aid", label: "FAFSA Assistant", icon: DollarSign, badge: "New", roles: ['student', 'parent'] },
+  { href: "/award-comparison", label: "Aid Comparison", icon: BarChart3, roles: ['student', 'parent'] },
+  { href: "/appeal-letter", label: "Appeal Letter", icon: Mail, roles: ['student', 'parent'] },
   { href: "/pricing", label: "Upgrade", icon: Crown, roles: ['student', 'parent'] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ['student', 'parent', 'counselor'] },
 ];

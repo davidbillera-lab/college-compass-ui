@@ -33,6 +33,12 @@ import ParentDashboard from "./pages/ParentDashboard";
 import AdminMonitoringPage from "./pages/AdminMonitoringPage";
 import PracticeTestPage from "./pages/PracticeTestPage";
 import StudentReportPage from "./pages/StudentReportPage";
+import FinancialAidAssistantPage from "./pages/FinancialAidAssistantPage";
+import AwardComparisonPage from "./pages/AwardComparisonPage";
+import AppealLetterPage from "./pages/AppealLetterPage";
+import TaskTimelinePage from "./pages/TaskTimelinePage";
+import CareerAssessmentPage from "./pages/CareerAssessmentPage";
+import BragSheetPage from "./pages/BragSheetPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -106,6 +112,12 @@ export default function App() {
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/practice-tests" element={<PracticeTestPage />} />
                   <Route path="/report" element={<StudentReportPage />} />
+                  <Route path="/financial-aid" element={<FinancialAidAssistantPage />} />
+                  <Route path="/award-comparison" element={<AwardComparisonPage />} />
+                  <Route path="/appeal-letter" element={<AppealLetterPage />} />
+                  <Route path="/task-timeline" element={<TaskTimelinePage />} />
+                  <Route path="/career-assessment" element={<CareerAssessmentPage />} />
+                  <Route path="/brag-sheet" element={<BragSheetPage />} />
                 </Route>
               </Route>
               
