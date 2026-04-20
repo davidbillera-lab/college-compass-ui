@@ -2,7 +2,7 @@
 // This page implements the SAT/ACT practice test feature with real question data.
 // All changes must be made via direct GitHub commits or this environment.
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,20 +114,21 @@ export default function PracticeTestPage() {
   const actSections = ["all", "english", "math", "reading", "science"];
   const sections = testType === "SAT" ? satSections : actSections;
 
-  useEffect(() => {
-    if (session?.user) loadPastAttempts();
-  }, [session]);
-
-  async function loadPastAttempts() {
+  const loadPastAttempts = useCallback(async () => {
+    if (!session?.user) return;
     const { data } = await supabase
       .from("student_test_attempts")
       .select("id, test_type, section, score_raw, score_scaled, total_questions, completed_at, section_scores")
-      .eq("user_id", session!.user.id)
+      .eq("user_id", session.user.id)
       .eq("completed", true)
       .order("completed_at", { ascending: false })
       .limit(20);
     if (data) setPastAttempts(data as PastAttempt[]);
-  }
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.user) void loadPastAttempts();
+  }, [session, loadPastAttempts]);
 
   async function startTest() {
     setLoading(true);
@@ -271,7 +272,7 @@ export default function PracticeTestPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="start">Start Test</TabsTrigger>
           <TabsTrigger value="results" disabled={!result}>Results</TabsTrigger>

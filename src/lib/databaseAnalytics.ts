@@ -40,7 +40,7 @@ export const trackPageViewDb = async (
  */
 export const trackEventDb = async (
   eventName: string,
-  eventData?: Record<string, any>
+  eventData?: Record<string, unknown>
 ) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();

@@ -55,14 +55,7 @@ export function AddToListDialog({
   const [newListColor, setNewListColor] = React.useState("blue");
   const [creating, setCreating] = React.useState(false);
 
-  // Load lists and membership when dialog opens
-  React.useEffect(() => {
-    if (open && user) {
-      loadData();
-    }
-  }, [open, user, collegeId]);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       const [listsData, membership] = await Promise.all([
@@ -81,7 +74,14 @@ export function AddToListDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [collegeId]);
+
+  // Load lists and membership when dialog opens
+  React.useEffect(() => {
+    if (open && user) {
+      void loadData();
+    }
+  }, [open, user, loadData]);
 
   const handleToggleList = async (listId: string, checked: boolean) => {
     try {
@@ -99,7 +99,7 @@ export function AddToListDialog({
         toast({ title: "Removed from list" });
       }
       // Refresh counts
-      loadData();
+      void loadData();
     } catch (err) {
       console.error("Error toggling list:", err);
       toast({
@@ -125,7 +125,7 @@ export function AddToListDialog({
       toast({ title: `Created "${newListName}" and added ${collegeName}` });
       setNewListName("");
       setShowNewList(false);
-      loadData();
+      void loadData();
     } catch (err) {
       console.error("Error creating list:", err);
       toast({

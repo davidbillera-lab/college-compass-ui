@@ -9,7 +9,7 @@ export type OnboardingStep =
   | "results";
 
 export async function getNextOnboardingStep(): Promise<OnboardingStep> {
-  const profile: any = await ensureProfileRow();
+  const profile = await ensureProfileRow();
   const snap = computeProfileSnapshot(profile);
 
   // Keep it simple: if missing basics, go basics. If missing story, go story. If <2 activities, go activities.

@@ -13,8 +13,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const log = (msg: string, details?: any) =>
+const log = (msg: string, details?: unknown) =>
   console.log(`[MONITOR] ${msg}${details ? ` - ${JSON.stringify(details)}` : ""}`);
+
+type AnalyticsEvent = {
+  event_name: string;
+  event_data: unknown;
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,7 +41,7 @@ serve(async (req) => {
       severity: string;
       title: string;
       details: string;
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
     }> = [];
 
     // 1. Check for recent auth errors (failed logins in last 15 min)
@@ -55,7 +60,7 @@ serve(async (req) => {
         alert_type: "system",
         severity: "warning",
         title: `High error rate detected: ${recentErrors.length} errors in 15 min`,
-        details: `Error events: ${[...new Set(recentErrors.map((e: any) => e.event_name))].join(", ")}`,
+        details: `Error events: ${[...new Set(recentErrors.map((e: AnalyticsEvent) => e.event_name))].join(", ")}`,
         metadata: { count: recentErrors.length },
       });
     }
@@ -74,7 +79,7 @@ serve(async (req) => {
         alert_type: "payment_failure",
         severity: "critical",
         title: `${paymentErrors.length} payment error(s) in last 15 minutes`,
-        details: paymentErrors.map((e: any) => JSON.stringify(e.event_data)).join("\n"),
+        details: paymentErrors.map((e: AnalyticsEvent) => JSON.stringify(e.event_data)).join("\n"),
         metadata: { count: paymentErrors.length },
       });
     }

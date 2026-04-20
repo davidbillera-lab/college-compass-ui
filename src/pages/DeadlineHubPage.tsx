@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchAllDeadlines,
   daysUntil,
@@ -27,6 +28,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from "date-fns";
+import { buildDemoDeadlines } from "@/lib/demoStudent";
 
 // ─── Urgency config ───────────────────────────────────────────────────────────
 const URGENCY_CONFIG = {
@@ -145,9 +147,10 @@ function MiniCalendar({ deadlines, month, onMonthChange }: MiniCalendarProps) {
 // ─── Deadline Row ─────────────────────────────────────────────────────────────
 interface DeadlineRowProps {
   item: DeadlineItem;
+  demoSearch?: string;
 }
 
-function DeadlineRow({ item }: DeadlineRowProps) {
+function DeadlineRow({ item, demoSearch = "" }: DeadlineRowProps) {
   const days = daysUntil(item.deadline_date);
   const urgency = urgencyLevel(days);
   const cfg = URGENCY_CONFIG[urgency];
@@ -181,7 +184,7 @@ function DeadlineRow({ item }: DeadlineRowProps) {
         </Badge>
         {item.type === "college" && (
           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" asChild>
-            <Link to="/applications">
+            <Link to={`/applications${demoSearch}`}>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
@@ -194,15 +197,19 @@ function DeadlineRow({ item }: DeadlineRowProps) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DeadlineHubPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
+  const demoSearch = isDemoMode ? "?guest=true&demo=junior" : "";
   const [deadlines, setDeadlines] = React.useState<DeadlineItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [calMonth, setCalMonth] = React.useState(new Date());
 
-  React.useEffect(() => {
-    if (user) void loadDeadlines();
-  }, [user]);
-
-  const loadDeadlines = async () => {
+  const loadDeadlines = React.useCallback(async () => {
+    if (isDemoMode) {
+      setDeadlines(buildDemoDeadlines());
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     setLoading(true);
     try {
@@ -213,7 +220,11 @@ export default function DeadlineHubPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemoMode, user]);
+
+  React.useEffect(() => {
+    if (isDemoMode || user) void loadDeadlines();
+  }, [isDemoMode, user, loadDeadlines]);
 
   // Group by urgency
   const grouped = {
@@ -241,7 +252,7 @@ export default function DeadlineHubPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link to="/applications">
+          <Link to={`/applications${demoSearch}`}>
             <TrendingUp className="h-4 w-4 mr-1.5" />
             Application Tracker
           </Link>
@@ -278,10 +289,10 @@ export default function DeadlineHubPage() {
                 </p>
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" size="sm" asChild>
-                    <Link to="/applications">College Deadlines</Link>
+                    <Link to={`/applications${demoSearch}`}>College Deadlines</Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to="/scholarships-intel">Scholarship Deadlines</Link>
+                    <Link to={`/scholarships-intel${demoSearch}`}>Scholarship Deadlines</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -303,7 +314,7 @@ export default function DeadlineHubPage() {
                   </div>
                   <div className="space-y-2">
                     {items.map((item) => (
-                      <DeadlineRow key={item.id} item={item} />
+                      <DeadlineRow key={item.id} item={item} demoSearch={demoSearch} />
                     ))}
                   </div>
                 </div>

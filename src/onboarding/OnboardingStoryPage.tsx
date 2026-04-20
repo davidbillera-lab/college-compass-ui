@@ -38,7 +38,7 @@ export default function OnboardingStoryPage() {
 
   useEffect(() => {
     (async () => {
-      const prof: any = await ensureProfileRow();
+      const prof = await ensureProfileRow();
       if (prof.proud_moment) setProudMoment(prof.proud_moment);
       if (prof.challenge) setChallenge(prof.challenge);
       if (prof.impact) setImpact(prof.impact);
@@ -61,8 +61,8 @@ export default function OnboardingStoryPage() {
         profile_extras: { ...extras, proudMoment: proudMoment || null, challenge: challenge || null, impact: impact || null },
       }).eq("id", user.id);
       nav("/onboarding/results");
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to save");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }

@@ -1,4 +1,10 @@
-import { Scholarship, MatchResult, NormalizedCriteria, Profile, ScholarshipUserAnswer } from './types';
+import type {
+  Scholarship,
+  MatchResult,
+  NormalizedCriteria,
+  Profile,
+  ScholarshipUserAnswer,
+} from './types.ts';
 
 // Build answers map from user answers
 function buildAnswersMap(answers: ScholarshipUserAnswer[]): Record<string, unknown> {

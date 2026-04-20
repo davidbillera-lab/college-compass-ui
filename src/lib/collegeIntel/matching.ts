@@ -1,4 +1,4 @@
-import { College, CollegeProfile, CollegeMatchResult } from './types';
+import type { College, CollegeProfile, CollegeMatchResult } from './types.ts';
 
 // Calculate academic match score
 function calculateAcademicScore(college: College, profile: CollegeProfile): { score: number; reasons: string[]; missing: string[] } {

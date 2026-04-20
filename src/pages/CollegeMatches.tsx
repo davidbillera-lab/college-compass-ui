@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchColleges, fetchCollegeProfile } from "../lib/collegeIntel/api";
 import { calculateAllCollegeMatches } from "../lib/collegeIntel/matching";
@@ -34,6 +34,8 @@ import CollegeDetailsDrawer from "../components/CollegeDetailsDrawer";
 import { AdvancedFilters, AdvancedFiltersState, defaultFilters } from "../components/colleges/AdvancedFilters";
 import { AddToListDialog } from "../components/colleges/AddToListDialog";
 import { Scale, FolderPlus } from "lucide-react";
+import { toast } from "sonner";
+import { demoJuniorProfile } from "@/lib/demoStudent";
 
 // Extended recommendation with college data for filtering
 interface ExtendedRecommendation extends CollegeRecommendation {
@@ -80,6 +82,9 @@ function nextStatus(s: "interested" | "applying" | "applied" | "not_now") {
 export default function CollegeMatches() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
+  const demoSearch = isDemoMode ? "&guest=true&demo=junior" : "";
   const [items, setItems] = React.useState<ExtendedRecommendation[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -120,23 +125,23 @@ export default function CollegeMatches() {
 
   const goToCompare = () => {
     const ids = Array.from(compareSelection).join(",");
-    navigate(`/college-compare?ids=${ids}`);
+    navigate(`/college-compare?ids=${ids}${demoSearch}`);
   };
 
   // Load and calculate college matches
   React.useEffect(() => {
     const loadMatches = async () => {
-      if (!user?.id) {
+      if (!user?.id && !isDemoMode) {
         setError("Please log in to view college matches");
         setLoading(false);
         return;
       }
 
       try {
-        const [colleges, profile] = await Promise.all([
-          fetchColleges(),
-          fetchCollegeProfile(user.id),
-        ]);
+        const colleges = await fetchColleges();
+        const profile = isDemoMode
+          ? demoJuniorProfile
+          : await fetchCollegeProfile(user!.id);
 
         if (!profile) {
           setError("Please complete your profile to view matches");
@@ -181,7 +186,7 @@ export default function CollegeMatches() {
     };
 
     loadMatches();
-  }, [user?.id]);
+  }, [isDemoMode, user]);
 
   // Persist shortlist changes
   React.useEffect(() => {
@@ -487,7 +492,13 @@ export default function CollegeMatches() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setAddToListCollege({ id: r.collegeId, name: r.collegeName })}
+                          onClick={() => {
+                            if (isDemoMode) {
+                              toast.info("List saving is disabled in demo mode");
+                              return;
+                            }
+                            setAddToListCollege({ id: r.collegeId, name: r.collegeName });
+                          }}
                           className="text-muted-foreground hover:text-foreground"
                         >
                           <FolderPlus className="h-4 w-4" />
@@ -502,7 +513,7 @@ export default function CollegeMatches() {
                               e.stopPropagation();
                               const current = shortlist[r.collegeId].status;
                               const next = nextStatus(current);
-                              setShortlist((m: any) => setStatus(m, r.collegeId, next));
+                              setShortlist((m) => setStatus(m, r.collegeId, next));
                             }}
                             title="Click to change status"
                           >
@@ -528,7 +539,7 @@ export default function CollegeMatches() {
                             className="text-xs text-muted-foreground hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setShortlist((m: any) =>
+                              setShortlist((m) =>
                                 upsertShortlistItem(m, r.collegeId, r.collegeName, "interested")
                               );
                             }}
@@ -589,27 +600,29 @@ export default function CollegeMatches() {
         notes={saved ? shortlist[selectedId].notes ?? "" : ""}
         onSave={() => {
           if (!selected) return;
-          setShortlist((m: any) =>
+          setShortlist((m) =>
             upsertShortlistItem(m, selected.collegeId, selected.collegeName, "interested")
           );
         }}
         onStatusChange={(s) => {
           if (!selected) return;
-          setShortlist((m: any) => setStatus(m, selected.collegeId, s));
+          setShortlist((m) => setStatus(m, selected.collegeId, s));
         }}
         onNotesChange={(n) => {
           if (!selected) return;
-          setShortlist((m: any) => setNotes(m, selected.collegeId, n));
+          setShortlist((m) => setNotes(m, selected.collegeId, n));
         }}
       />
 
       {/* Add to List Dialog */}
-      <AddToListDialog
-        open={!!addToListCollege}
-        onOpenChange={(open) => !open && setAddToListCollege(null)}
-        collegeId={addToListCollege?.id || ""}
-        collegeName={addToListCollege?.name || ""}
-      />
+      {!isDemoMode && (
+        <AddToListDialog
+          open={!!addToListCollege}
+          onOpenChange={(open) => !open && setAddToListCollege(null)}
+          collegeId={addToListCollege?.id || ""}
+          collegeName={addToListCollege?.name || ""}
+        />
+      )}
     </div>
   );
 }

@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Lock, Palette, Download, LogOut } from "lucide-react";
+import { Bell, Lock, Palette, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+
 export default function Settings() {
   const { signOut } = useAuth();
   const navigate = useNavigate();

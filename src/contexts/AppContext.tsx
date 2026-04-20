@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole } from '@/lib/mockData';
 import { useAuth } from '@/contexts/AuthContext';

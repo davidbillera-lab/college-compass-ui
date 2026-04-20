@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ export function ApplicationMaterialsList({ onAnalyze, refreshTrigger }: Applicat
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const loadMaterials = async () => {
+  const loadMaterials = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -80,11 +80,11 @@ export function ApplicationMaterialsList({ onAnalyze, refreshTrigger }: Applicat
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    loadMaterials();
-  }, [user, refreshTrigger]);
+    void loadMaterials();
+  }, [loadMaterials, refreshTrigger]);
 
   const handleDelete = async (material: ApplicationMaterial) => {
     if (!confirm("Are you sure you want to delete this material?")) return;

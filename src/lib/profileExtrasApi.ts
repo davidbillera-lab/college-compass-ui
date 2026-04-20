@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, ProfileRow } from "@/integrations/supabase/types";
 import type { Activity, ProfileExtras } from "@/lib/profileUtils";
 
 async function requireUserId(): Promise<string> {
@@ -8,7 +9,7 @@ async function requireUserId(): Promise<string> {
   return data.user.id;
 }
 
-export async function loadProfile() {
+export async function loadProfile(): Promise<ProfileRow> {
   const userId = await requireUserId();
   const { data, error } = await supabase
     .from("profiles")
@@ -19,7 +20,7 @@ export async function loadProfile() {
   return data;
 }
 
-export async function ensureProfileRow() {
+export async function ensureProfileRow(): Promise<ProfileRow> {
   const userId = await requireUserId();
 
   const { data: existing, error: selErr } = await supabase
@@ -48,10 +49,9 @@ export async function ensureProfileRow() {
 
 export async function saveProfileExtras(extras: ProfileExtras) {
   const userId = await requireUserId();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from("profiles")
-    .update({ profile_extras: extras as any })
+    .update({ profile_extras: extras as Json })
     .eq("id", userId);
 
   if (error) throw error;

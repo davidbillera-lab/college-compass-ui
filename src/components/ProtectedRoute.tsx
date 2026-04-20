@@ -5,9 +5,8 @@ import { Loader2 } from 'lucide-react';
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
-  
-  // Allow guest access with ?guest=true for external tools like ChatGPT
-  const isGuestMode = searchParams.get('guest') === 'true';
+  const guestModeEnabled = import.meta.env.VITE_ENABLE_GUEST_MODE === 'true';
+  const isGuestMode = guestModeEnabled && searchParams.get('guest') === 'true';
 
   if (loading && !isGuestMode) {
     return (
@@ -17,7 +16,6 @@ export function ProtectedRoute() {
     );
   }
 
-  // Allow access if user is authenticated OR guest mode is enabled
   if (!user && !isGuestMode) {
     return <Navigate to="/auth" replace />;
   }

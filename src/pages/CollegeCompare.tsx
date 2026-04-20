@@ -82,7 +82,7 @@ export default function CollegeCompare() {
       }
     };
     loadColleges();
-  }, []);
+  }, [searchParams]);
 
   // Update URL when selection changes
   React.useEffect(() => {

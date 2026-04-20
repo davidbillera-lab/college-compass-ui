@@ -15,7 +15,9 @@ import {
   Bell,
   Activity,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import type { MonitoringAlertRow } from "@/integrations/supabase/types";
 
 type MonitoringAlert = {
   id: string;
@@ -23,7 +25,7 @@ type MonitoringAlert = {
   severity: string;
   title: string;
   details: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown> | null;
   resolved: boolean;
   resolved_at: string | null;
   created_at: string;
@@ -35,7 +37,7 @@ const severityConfig = {
   info: { color: "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30", icon: Bell },
 };
 
-const typeConfig: Record<string, { label: string; icon: any }> = {
+const typeConfig: Record<string, { label: string; icon: LucideIcon }> = {
   auth_error: { label: "Auth", icon: Shield },
   payment_failure: { label: "Payment", icon: CreditCard },
   edge_function_error: { label: "Function", icon: Server },
@@ -61,7 +63,7 @@ export default function AdminMonitoringPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as MonitoringAlert[];
+      return (data ?? []) as MonitoringAlertRow[] as MonitoringAlert[];
     },
   });
 
@@ -91,7 +93,7 @@ export default function AdminMonitoringPage() {
       refetch();
       toast.success(`Monitor check complete: ${data?.alerts_created || 0} alerts found`);
     },
-    onError: (err) => toast.error(`Check failed: ${err.message}`),
+    onError: (err: Error) => toast.error(`Check failed: ${err.message}`),
   });
 
   const unresolvedCount = alerts.filter((a) => !a.resolved).length;

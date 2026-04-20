@@ -140,14 +140,16 @@ function parseValue(value: string, type: 'number' | 'boolean' | 'string_array' |
   if (!value || value.toLowerCase() === 'null' || value === '') return null;
   
   switch (type) {
-    case 'number':
+    case 'number': {
       const num = parseFloat(value);
       return isNaN(num) ? null : num;
-    case 'boolean':
+    }
+    case 'boolean': {
       const lower = value.toLowerCase();
       if (lower === 'true' || lower === 'yes' || lower === '1') return true;
       if (lower === 'false' || lower === 'no' || lower === '0') return false;
       return null;
+    }
     case 'string_array':
       return value.split(';').map(s => s.trim()).filter(Boolean);
     case 'string':

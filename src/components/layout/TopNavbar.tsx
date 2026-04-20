@@ -1,11 +1,11 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   GraduationCap, 
   Menu, 
   X, 
-  User,
   LogOut,
   Settings
 } from "lucide-react";
@@ -18,10 +18,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { demoJuniorProfile } from "@/lib/demoStudent";
 
 const publicNavLinks = [
   { href: "/", label: "Home" },
-  { href: "/features", label: "Features" },
+  { href: "/#features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -31,20 +32,39 @@ interface TopNavbarProps {
 
 export function TopNavbar({ onMenuClick }: TopNavbarProps) {
   const { isLoggedIn, setIsLoggedIn, userName } = useApp();
+  const { signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
+  const demoSearch = isDemoMode
+    ? "?guest=true&demo=junior"
+    : "";
+  const isAppMode = isLoggedIn || isDemoMode;
+  const accountName = isDemoMode ? demoJuniorProfile.full_name : userName;
 
-  const initials = userName
+  const initials = accountName
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
 
+  async function handleSignOut() {
+    if (isDemoMode) {
+      navigate("/");
+      return;
+    }
+
+    await signOut();
+    setIsLoggedIn(false);
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
-        <Link to={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-2 group">
+        <Link to={isAppMode ? `/dashboard${demoSearch}` : "/"} className="flex items-center gap-2 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-hero shadow-soft group-hover:shadow-card transition-shadow">
             <GraduationCap className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -54,7 +74,7 @@ export function TopNavbar({ onMenuClick }: TopNavbarProps) {
         </Link>
 
         {/* Desktop Navigation */}
-        {!isLoggedIn && (
+        {!isAppMode && (
           <nav className="hidden md:flex items-center gap-8">
             {publicNavLinks.map((link) => (
               <Link
@@ -74,7 +94,7 @@ export function TopNavbar({ onMenuClick }: TopNavbarProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          {isLoggedIn ? (
+          {isAppMode ? (
             <>
               {/* Mobile menu button for logged in users */}
               <Button
@@ -98,23 +118,23 @@ export function TopNavbar({ onMenuClick }: TopNavbarProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium text-foreground">{userName}</p>
-                    <p className="text-xs text-muted-foreground">Student Account</p>
+                    <p className="text-sm font-medium text-foreground">{accountName}</p>
+                    <p className="text-xs text-muted-foreground">{isDemoMode ? "Demo Student" : "Student Account"}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/settings" className="flex items-center gap-2">
+                    <Link to={`/settings${demoSearch}`} className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
                       Settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={() => setIsLoggedIn(false)}
+                    onClick={() => void handleSignOut()}
                     className="text-destructive focus:text-destructive"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    Sign out
+                    {isDemoMode ? "Exit demo" : "Sign out"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

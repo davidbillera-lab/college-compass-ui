@@ -59,7 +59,7 @@ export default function OnboardingFinancialPage() {
 
   useEffect(() => {
     (async () => {
-      const prof: any = await ensureProfileRow();
+      const prof = await ensureProfileRow();
       if (prof.financial_need !== null && prof.financial_need !== undefined) setFinancialNeed(prof.financial_need);
       if (prof.first_gen_college !== null && prof.first_gen_college !== undefined) setFirstGen(prof.first_gen_college);
       if (prof.budget_max_usd) setBudget(prof.budget_max_usd);
@@ -94,8 +94,8 @@ export default function OnboardingFinancialPage() {
         );
       }
       nav("/onboarding/activities");
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to save");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }

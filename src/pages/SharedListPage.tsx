@@ -30,13 +30,7 @@ export default function SharedListPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (shareToken) {
-      loadSharedList();
-    }
-  }, [shareToken]);
-
-  const loadSharedList = async () => {
+  const loadSharedList = React.useCallback(async () => {
     if (!shareToken) return;
     setLoading(true);
     setError(null);
@@ -67,7 +61,13 @@ export default function SharedListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shareToken]);
+
+  React.useEffect(() => {
+    if (shareToken) {
+      void loadSharedList();
+    }
+  }, [shareToken, loadSharedList]);
 
   const getColorClass = (color: string | null) => {
     return LIST_COLORS[color || "blue"] || "bg-blue-500";

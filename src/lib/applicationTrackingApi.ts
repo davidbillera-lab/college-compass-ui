@@ -1,4 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
+type UntypedQueryResult<T> = { data: T | null; error: Error | null };
+type UntypedTableQuery<T> = {
+  select: (columns?: string) => UntypedTableQuery<T> & Promise<UntypedQueryResult<T>>;
+  eq: (column: string, value: string) => UntypedTableQuery<T>;
+  order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => UntypedTableQuery<T>;
+  insert: (values: unknown) => UntypedTableQuery<T>;
+  update: (values: unknown) => UntypedTableQuery<T>;
+};
+type UntypedSupabase = {
+  from: <T>(table: string) => UntypedTableQuery<T>;
+};
+const db = supabase as unknown as UntypedSupabase;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +157,7 @@ export async function fetchChecklist(
   studentId: string,
   collegeId: string
 ): Promise<ChecklistItem[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("application_checklist_items")
     .select("*")
     .eq("student_id", studentId)
@@ -170,7 +182,7 @@ export async function seedChecklist(
     college_id: collegeId,
   }));
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("application_checklist_items")
     .insert(rows)
     .select();
@@ -183,7 +195,7 @@ export async function toggleChecklistItem(
   itemId: string,
   completed: boolean
 ): Promise<void> {
-  const { error } = await (supabase as any)
+  const { error } = await db
     .from("application_checklist_items")
     .update({
       completed_at: completed ? new Date().toISOString() : null,
@@ -197,7 +209,7 @@ export async function updateChecklistItemDue(
   itemId: string,
   dueDate: string | null
 ): Promise<void> {
-  const { error } = await (supabase as any)
+  const { error } = await db
     .from("application_checklist_items")
     .update({ due_date: dueDate, updated_at: new Date().toISOString() })
     .eq("id", itemId);

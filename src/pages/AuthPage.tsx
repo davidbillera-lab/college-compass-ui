@@ -27,6 +27,8 @@ export default function AuthPage() {
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const canUseDevAutoLogin =
+    import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_AUTO_LOGIN === 'true';
 
   // Redirect if already logged in
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function AuthPage() {
 
   // Dev auto-login: attempt once when page loads
   useEffect(() => {
-    if (loading || user || autoLoginAttempted.current) return;
+    if (!canUseDevAutoLogin || loading || user || autoLoginAttempted.current) return;
     
     autoLoginAttempted.current = true;
     
@@ -74,7 +76,7 @@ export default function AuthPage() {
     };
 
     attemptDevAutoLogin();
-  }, [loading, user, navigate, toast]);
+  }, [canUseDevAutoLogin, loading, user, navigate, toast]);
 
   const validateForm = () => {
     try {

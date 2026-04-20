@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   fetchSharedPortfolio,
@@ -115,13 +115,7 @@ export default function SharedPortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (shareToken) {
-      void loadPortfolio();
-    }
-  }, [shareToken]);
-
-  const loadPortfolio = async () => {
+  const loadPortfolio = useCallback(async () => {
     if (!shareToken) return;
     setLoading(true);
     try {
@@ -136,7 +130,13 @@ export default function SharedPortfolioPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shareToken]);
+
+  useEffect(() => {
+    if (shareToken) {
+      void loadPortfolio();
+    }
+  }, [shareToken, loadPortfolio]);
 
   if (loading) {
     return (

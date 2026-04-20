@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchMyPortfolioShare,
@@ -58,13 +58,7 @@ export function PortfolioSharePanel({ open, onOpenChange, materials }: Portfolio
     ? `${window.location.origin}/shared-portfolio/${share.share_token}`
     : null;
 
-  useEffect(() => {
-    if (open && user) {
-      void loadShare();
-    }
-  }, [open, user]);
-
-  const loadShare = async () => {
+  const loadShare = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -75,7 +69,13 @@ export function PortfolioSharePanel({ open, onOpenChange, materials }: Portfolio
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (open && user) {
+      void loadShare();
+    }
+  }, [open, user, loadShare]);
 
   const handleCreate = async () => {
     if (!user) return;

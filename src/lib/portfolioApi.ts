@@ -1,4 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
+type UntypedQueryResult<T> = { data: T | null; error: Error | null };
+type UntypedTableQuery<T> = {
+  select: (columns?: string) => UntypedTableQuery<T> & {
+    eq: (column: string, value: string | boolean) => UntypedTableQuery<T>;
+    order: (column: string, options?: { ascending?: boolean }) => UntypedTableQuery<T>;
+    limit: (value: number) => UntypedTableQuery<T>;
+    maybeSingle: () => Promise<UntypedQueryResult<T>>;
+    single: () => Promise<UntypedQueryResult<T>>;
+  } & Promise<UntypedQueryResult<T>>;
+  eq: (column: string, value: string | boolean) => UntypedTableQuery<T>;
+  order: (column: string, options?: { ascending?: boolean }) => UntypedTableQuery<T>;
+  limit: (value: number) => UntypedTableQuery<T>;
+  maybeSingle: () => Promise<UntypedQueryResult<T>>;
+  single: () => Promise<UntypedQueryResult<T>>;
+  insert: (values: unknown) => UntypedTableQuery<T>;
+  update: (values: unknown) => UntypedTableQuery<T>;
+};
+type UntypedSupabase = {
+  from: <T>(table: string) => UntypedTableQuery<T>;
+};
+const db = supabase as unknown as UntypedSupabase;
 
 export interface ApplicationMaterial {
   id: string;
@@ -70,7 +91,7 @@ export async function deleteMaterial(id: string, fileUrl: string | null): Promis
 }
 
 export async function fetchMyPortfolioShare(userId: string): Promise<PortfolioShare | null> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("portfolio_shares")
     .select("*")
     .eq("user_id", userId)
@@ -87,7 +108,7 @@ export async function createPortfolioShare(
   label: string,
   options: { include_essays?: boolean; include_materials?: boolean; include_profile?: boolean }
 ): Promise<PortfolioShare> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await db
     .from("portfolio_shares")
     .insert({
       user_id: userId,
@@ -104,7 +125,7 @@ export async function createPortfolioShare(
 }
 
 export async function deactivatePortfolioShare(id: string): Promise<void> {
-  const { error } = await (supabase as any)
+  const { error } = await db
     .from("portfolio_shares")
     .update({ is_active: false })
     .eq("id", id);
@@ -117,7 +138,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   profile: Record<string, unknown> | null;
 } | null> {
   // Fetch the share record
-  const { data: share, error: shareError } = await (supabase as any)
+  const { data: share, error: shareError } = await db
     .from("portfolio_shares")
     .select("*")
     .eq("share_token", token)
@@ -129,7 +150,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   const portfolioShare = share as PortfolioShare;
 
   // Increment view count
-  await (supabase as any)
+  await db
     .from("portfolio_shares")
     .update({ view_count: portfolioShare.view_count + 1, last_viewed_at: new Date().toISOString() })
     .eq("id", portfolioShare.id);
@@ -148,7 +169,7 @@ export async function fetchSharedPortfolio(token: string): Promise<{
   // Fetch profile if included
   let profile: Record<string, unknown> | null = null;
   if (portfolioShare.include_profile) {
-    const { data: prof } = await (supabase as any)
+    const { data: prof } = await db
       .from("profiles")
       .select("full_name, grad_year, gpa_unweighted, gpa_weighted, sat_score, act_score, intended_majors, budget_max_usd")
       .eq("id", portfolioShare.user_id)

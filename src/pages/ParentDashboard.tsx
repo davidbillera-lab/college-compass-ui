@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackParentView } from "@/lib/analytics";
 import { format, differenceInDays, isPast } from "date-fns";
+import { demoJuniorProfile, demoParentProgress } from "@/lib/demoStudent";
 
 interface StudentProgress {
   profileCompletion: number;
@@ -42,17 +44,24 @@ interface StudentProgress {
 
 export default function ParentDashboard() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
   const [progress, setProgress] = useState<StudentProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState<string>("Your Student");
 
-  useEffect(() => {
-    trackParentView("dashboard");
-    fetchStudentProgress();
-  }, [user]);
+  const fetchStudentProgress = useCallback(async () => {
+    if (isDemoMode) {
+      setStudentName(demoJuniorProfile.preferred_name);
+      setProgress(demoParentProgress);
+      setLoading(false);
+      return;
+    }
 
-  const fetchStudentProgress = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       // Fetch profile for completion and name
@@ -154,7 +163,12 @@ export default function ParentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemoMode, user]);
+
+  useEffect(() => {
+    trackParentView("dashboard");
+    void fetchStudentProgress();
+  }, [fetchStudentProgress]);
 
   if (loading) {
     return (

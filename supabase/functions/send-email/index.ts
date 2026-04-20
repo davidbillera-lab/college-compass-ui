@@ -137,14 +137,16 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    const code = error instanceof Error && 'code' in error ? error.code : 500
     console.error('Error in send-email function:', error)
     
     return new Response(
       JSON.stringify({
         error: {
           http_code: error.code || 500,
-          message: error.message || 'Unknown error',
+          message,
         },
       }),
       {

@@ -45,8 +45,8 @@ export default function CollegeLibraryPage() {
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { scores, loading: aiLoading, calculateCollegeScores, getScore } = useAIMatchScores();
-  const { isPremium, hasAccess, openCheckout, loading: subscriptionLoading } = useSubscription();
+  const { loading: aiLoading, calculateCollegeScores, getScore } = useAIMatchScores();
+  const { hasAccess, openCheckout } = useSubscription();
 
   const { data: colleges = [], isLoading } = useQuery({
     queryKey: ["colleges-library"],
@@ -94,7 +94,7 @@ export default function CollegeLibraryPage() {
     }
 
     return result;
-  }, [colleges, search, regionFilter, typeFilter, sizeFilter, stateFilter, likelyAdmitsOnly, sortBy, scores]);
+  }, [colleges, search, regionFilter, typeFilter, sizeFilter, stateFilter, likelyAdmitsOnly, sortBy, getScore]);
 
   // Stats
   const stats = useMemo(() => {
@@ -156,11 +156,6 @@ export default function CollegeLibraryPage() {
   };
 
   const hasActiveFilters =
-    search !== "" ||
-    regionFilter !== "All" ||
-    typeFilter !== "All" ||
-    sizeFilter !== "All" ||
-    stateFilter !== "All";
     search !== "" ||
     regionFilter !== "All" ||
     typeFilter !== "All" ||

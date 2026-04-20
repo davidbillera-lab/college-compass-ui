@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { ProfileExtras, ProfileRow } from "@/lib/profileUtils";
 import ProfileSnapshotCard from "@/components/profile/ProfileSnapshotCard";
@@ -19,11 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, BookOpen, Calculator, ShieldCheck, Video, Activity, Dumbbell, GraduationCap, Sparkles, FolderOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { demoJuniorCoreData, demoJuniorProfileExtras, demoJuniorProfileRow } from "@/lib/demoStudent";
 
 export default function ProfilePage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const showWizard = searchParams.get("wizard") === "true";
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [extras, setExtras] = useState<ProfileExtras>({});
   const [coreData, setCoreData] = useState<CoreBasicsData>({});
@@ -36,9 +38,16 @@ export default function ProfilePage() {
     load(); // Reload profile after wizard closes
   };
 
-  async function load() {
+  const load = useCallback(async () => {
     setErr(null);
     try {
+      if (isDemoMode) {
+        setProfile(demoJuniorProfileRow);
+        setExtras(demoJuniorProfileExtras);
+        setCoreData(demoJuniorCoreData);
+        return;
+      }
+
       const p = await ensureProfileRow();
       // Map database row to ProfileRow type
       const mapped: ProfileRow = {
@@ -84,13 +93,21 @@ export default function ProfilePage() {
       const message = e instanceof Error ? e.message : "Failed to load profile";
       setErr(message);
     }
-  }
+  }, [isDemoMode]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function save() {
+    if (isDemoMode) {
+      toast({
+        title: "Demo mode",
+        description: "Profile edits are disabled in the demo walkthrough.",
+      });
+      return;
+    }
+
     setSaving(true);
     setErr(null);
     try {
@@ -196,7 +213,7 @@ export default function ProfilePage() {
             Boost Profile
           </Button>
           <Button onClick={save} disabled={saving} size="lg">
-            {saving ? "Saving…" : "Save All Changes"}
+            {isDemoMode ? "Demo Profile" : saving ? "Saving…" : "Save All Changes"}
           </Button>
         </div>
       </div>

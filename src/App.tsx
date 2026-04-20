@@ -39,6 +39,7 @@ import AppealLetterPage from "./pages/AppealLetterPage";
 import TaskTimelinePage from "./pages/TaskTimelinePage";
 import CareerAssessmentPage from "./pages/CareerAssessmentPage";
 import BragSheetPage from "./pages/BragSheetPage";
+import WaitlistPage from "./pages/WaitlistPage";
 
 import OnboardingGate from "./onboarding/OnboardingGate";
 import WelcomePage from "./onboarding/WelcomePage";
@@ -68,6 +69,8 @@ export default function App() {
             <Routes>
               {/* Public landing page */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/waitlist" element={<WaitlistPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
               
               {/* Auth routes */}
               <Route path="/auth" element={<AuthPage />} />
@@ -109,7 +112,6 @@ export default function App() {
                   <Route path="/deadlines" element={<DeadlineHubPage />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
-                  <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/practice-tests" element={<PracticeTestPage />} />
                   <Route path="/report" element={<StudentReportPage />} />
                   <Route path="/financial-aid" element={<FinancialAidAssistantPage />} />

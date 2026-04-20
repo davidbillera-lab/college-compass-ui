@@ -43,12 +43,13 @@ export default function StudentReportPage() {
         title: "Report Generated",
         description: "Your personalized student report is ready.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message);
+      const message = err instanceof Error ? err.message : "Failed to generate report";
+      setError(message);
       toast({
         title: "Generation Failed",
-        description: err.message,
+        description: message,
         variant: "destructive"
       });
     } finally {

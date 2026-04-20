@@ -31,7 +31,7 @@ export default function OnboardingAcademicsPage() {
 
   useEffect(() => {
     (async () => {
-      const prof: any = await ensureProfileRow();
+      const prof = await ensureProfileRow();
       if (prof.gpa_unweighted) setGpaUW(prof.gpa_unweighted.toString());
       if (prof.gpa_weighted) setGpaW(prof.gpa_weighted.toString());
       if (prof.sat_score) setSat(prof.sat_score.toString());
@@ -54,8 +54,8 @@ export default function OnboardingAcademicsPage() {
         coursework_rigor: rigor || null,
       }).eq("id", user.id);
       nav("/onboarding/financial");
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to save");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }

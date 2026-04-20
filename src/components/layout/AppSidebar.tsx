@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,10 @@ interface AppSidebarProps {
 export function AppSidebar({ mobileOpen, onMobileClose, collapsed, onCollapsedChange }: AppSidebarProps) {
   const { currentRole } = useApp();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const demoSearch = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior"
+    ? "?guest=true&demo=junior"
+    : "";
 
   const filteredNavItems = navItems.filter((item) =>
     item.roles.includes(currentRole)
@@ -89,7 +93,7 @@ export function AppSidebar({ mobileOpen, onMobileClose, collapsed, onCollapsedCh
           return (
             <Link
               key={item.href}
-              to={item.href}
+              to={`${item.href}${demoSearch}`}
               onClick={onMobileClose}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",

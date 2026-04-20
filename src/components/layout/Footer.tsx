@@ -3,20 +3,19 @@ import { GraduationCap } from "lucide-react";
 
 const footerLinks = {
   product: [
-    { label: "Features", href: "/features" },
+    { label: "Features", href: "/#features" },
     { label: "Pricing", href: "/pricing" },
     { label: "Testimonials", href: "/#testimonials" },
   ],
   company: [
-    { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "/careers" },
+    { label: "Home", href: "/" },
+    { label: "Join Waitlist", href: "/waitlist" },
+    { label: "Sign In", href: "/auth" },
   ],
   support: [
-    { label: "Help Center", href: "/help" },
-    { label: "Contact", href: "/contact" },
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
+    { label: "FAQ", href: "/#faq-heading" },
+    { label: "Scholarships", href: "/auth" },
+    { label: "Dashboard", href: "/auth" },
   ],
 };
 

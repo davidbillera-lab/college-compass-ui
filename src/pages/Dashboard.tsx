@@ -15,7 +15,12 @@ import {
   FolderOpen, CalendarDays, ListChecks,
 } from "lucide-react";
 import { fetchMaterials, calcPortfolioCompleteness } from "@/lib/portfolioApi";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { calculateAllCollegeMatches } from "@/lib/collegeIntel/matching";
+import { calculateAllMatches } from "@/lib/scholarshipsIntel/matching";
+import { demoJuniorAnswers, demoJuniorProfile } from "@/lib/demoStudent";
+import type { College } from "@/lib/collegeIntel/types";
+import type { Scholarship, Profile } from "@/lib/scholarshipsIntel/types";
 
 const ProfileCompletionWizard = React.lazy(() =>
   import("@/components/profile/ProfileCompletionWizard")
@@ -73,7 +78,11 @@ export default function Dashboard() {
   const [showWizard, setShowWizard] = React.useState(false);
   const { userName, profileStrength } = useApp();
   const { user } = useAuth();
-  const firstName = userName.split(" ")[0];
+  const [searchParams] = useSearchParams();
+  const isDemoMode = !user && searchParams.get("demo") === "junior";
+  const demoSearch = isDemoMode ? "?guest=true&demo=junior" : "";
+  const firstName = isDemoMode ? demoJuniorProfile.preferred_name : userName.split(" ")[0];
+  const effectiveProfileStrength = isDemoMode ? 92 : profileStrength;
 
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [collegeMatches, setCollegeMatches] = React.useState<CollegeMatchRow[]>([]);
@@ -85,11 +94,110 @@ export default function Dashboard() {
   const [portfolioCount, setPortfolioCount] = React.useState(0);
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!user && !isDemoMode) {
+      setLoading(false);
+      return;
+    }
+
     async function loadDashboard() {
       setLoading(true);
       setError(null);
       try {
+        if (isDemoMode) {
+          const [{ data: collegesData, error: collegesError }, { data: scholarshipsData, error: scholarshipsError }] =
+            await Promise.all([
+              supabase.from("colleges").select("*"),
+              supabase
+                .from("scholarships")
+                .select("*")
+                .or("status.is.null,status.eq.active"),
+            ]);
+
+          if (collegesError) throw collegesError;
+          if (scholarshipsError) throw scholarshipsError;
+
+          const collegeResults = calculateAllCollegeMatches(
+            (collegesData ?? []) as College[],
+            demoJuniorProfile
+          );
+          const scholarshipResults = calculateAllMatches(
+            (scholarshipsData ?? []) as Scholarship[],
+            demoJuniorProfile as Profile,
+            demoJuniorAnswers
+          );
+
+          const colleges = Array.from(collegeResults.entries())
+            .sort((a, b) => b[1].score - a[1].score)
+            .slice(0, 5)
+            .map(([collegeId, result]) => {
+              const college = (collegesData ?? []).find((item) => item.id === collegeId);
+              return {
+                id: collegeId,
+                bucket: result.bucket,
+                fit_score: result.score,
+                colleges: college
+                  ? { name: college.name, city: college.city, state: college.state }
+                  : null,
+              };
+            });
+
+          const scholarships = Array.from(scholarshipResults.entries())
+            .filter(([, result]) => result.eligibility_status === "eligible")
+            .sort((a, b) => b[1].score - a[1].score)
+            .slice(0, 3)
+            .map(([scholarshipId, result]) => {
+              const scholarship = (scholarshipsData ?? []).find((item) => item.id === scholarshipId);
+              return {
+                id: scholarshipId,
+                score: result.score,
+                scholarships: scholarship
+                  ? {
+                      name: scholarship.name,
+                      amount_max_usd: scholarship.amount_max_usd,
+                      amount_usd: scholarship.amount_usd,
+                      deadline_date: scholarship.deadline_date,
+                    }
+                  : null,
+              };
+            });
+
+          const potential = scholarships.reduce((sum, scholarship) => {
+            return sum + (scholarship.scholarships?.amount_max_usd ?? scholarship.scholarships?.amount_usd ?? 0);
+          }, 0);
+
+          const now = new Date();
+          const upcomingDeadlines = scholarships
+            .map((scholarship) => scholarship.scholarships?.deadline_date)
+            .filter(Boolean)
+            .map((deadline) => new Date(deadline!))
+            .filter((deadline) => deadline > now)
+            .sort((a, b) => a.getTime() - b.getTime());
+
+          const nextDeadline = upcomingDeadlines[0] ?? null;
+
+          setCollegeMatches(colleges);
+          setScholarshipMatches(scholarships);
+          setTasks([
+            { id: "demo-task-1", title: "Review top scholarship matches", completed_at: null, due_at: null, priority: 3 },
+            { id: "demo-task-2", title: "Add 2 more colleges to your shortlist", completed_at: null, due_at: null, priority: 2 },
+            { id: "demo-task-3", title: "Polish your personal story for essay season", completed_at: null, due_at: null, priority: 2 },
+          ]);
+          setPortfolioScore(68);
+          setPortfolioCount(4);
+          setStats({
+            collegeMatchCount: colleges.length,
+            scholarshipMatchCount: scholarships.length,
+            scholarshipPotentialUsd: potential,
+            nextDeadlineDays: nextDeadline
+              ? Math.ceil((nextDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+              : null,
+            nextDeadlineLabel: nextDeadline
+              ? nextDeadline.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+              : null,
+          });
+          return;
+        }
+
         const [cmRes, smRes, taskRes] = await Promise.all([
           supabase
             .from("college_matches")
@@ -167,7 +275,7 @@ export default function Dashboard() {
       }
     }
     loadDashboard();
-  }, [user]);
+  }, [isDemoMode, user]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-US", {
@@ -183,7 +291,7 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">Here's what's happening with your college applications.</p>
         </div>
         <Button variant="hero" asChild>
-          <Link to="/profile">Complete Profile <ArrowRight className="h-4 w-4 ml-1" /></Link>
+          <Link to={`/profile${demoSearch}`}>Complete Profile <ArrowRight className="h-4 w-4 ml-1" /></Link>
         </Button>
       </div>
 
@@ -209,17 +317,17 @@ export default function Dashboard() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="font-semibold text-foreground">Profile Strength</h3>
-                  <Badge variant={profileStrength >= 80 ? "success" : profileStrength >= 50 ? "warning" : "secondary"}>
-                    {profileStrength >= 80 ? "Strong" : profileStrength >= 50 ? "Good" : "Needs Work"}
+                  <Badge variant={effectiveProfileStrength >= 80 ? "success" : effectiveProfileStrength >= 50 ? "warning" : "secondary"}>
+                    {effectiveProfileStrength >= 80 ? "Strong" : effectiveProfileStrength >= 50 ? "Good" : "Needs Work"}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Complete your profile to unlock more college matches and scholarship opportunities.
                 </p>
-                <Progress value={profileStrength} variant="primary" indicatorVariant="gradient" size="lg" className="max-w-md" />
+                <Progress value={effectiveProfileStrength} variant="primary" indicatorVariant="gradient" size="lg" className="max-w-md" />
               </div>
               <div className="flex items-center gap-4">
-                <div className="text-4xl font-bold text-primary">{profileStrength}%</div>
+                <div className="text-4xl font-bold text-primary">{effectiveProfileStrength}%</div>
                 <Button variant="outline" onClick={() => setShowWizard(true)}>
                   <Sparkles className="h-4 w-4 mr-2" />Boost Profile
                 </Button>
@@ -258,10 +366,10 @@ export default function Dashboard() {
             />
             <StatCard
               title="Profile Strength"
-              value={`${profileStrength}%`}
+              value={`${effectiveProfileStrength}%`}
               subtitle="Keep building your story"
               icon={TrendingUp}
-              trend={profileStrength > 0 ? { value: profileStrength, label: "complete", positive: true } : undefined}
+              trend={effectiveProfileStrength > 0 ? { value: effectiveProfileStrength, label: "complete", positive: true } : undefined}
             />
             <StatCard
               title="Days to Deadline"
@@ -299,7 +407,7 @@ export default function Dashboard() {
                 <p className="text-sm">No tasks yet.</p>
                 <p className="text-xs mt-1">Complete your profile to generate your action plan.</p>
                 <Button variant="outline" size="sm" className="mt-3" asChild>
-                  <Link to="/profile">Build Profile</Link>
+                  <Link to={`/profile${demoSearch}`}>Build Profile</Link>
                 </Button>
               </div>
             ) : (
@@ -329,7 +437,7 @@ export default function Dashboard() {
               <CardDescription>Top matches based on your profile</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/colleges">View All</Link>
+              <Link to={`/colleges${demoSearch}`}>View All</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -345,7 +453,7 @@ export default function Dashboard() {
                   Finish your profile and visit the Discovery page to generate your personalized college list.
                 </p>
                 <Button variant="outline" size="sm" className="mt-4" asChild>
-                  <Link to="/discovery">Explore Colleges</Link>
+                  <Link to={`/discovery${demoSearch}`}>Explore Colleges</Link>
                 </Button>
               </div>
             ) : (
@@ -400,7 +508,7 @@ export default function Dashboard() {
                 </div>
               )}
               <Button variant="outline" size="sm" asChild>
-                <Link to="/portfolio">
+                <Link to={`/portfolio${demoSearch}`}>
                   {portfolioCount > 0 ? 'View Portfolio' : 'Start Portfolio'}
                   <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
                 </Link>
@@ -428,7 +536,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/applications">
+                <Link to={`/applications${demoSearch}`}>
                   Open <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
                 </Link>
               </Button>
@@ -448,7 +556,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/deadlines">
+                <Link to={`/deadlines${demoSearch}`}>
                   Open <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
                 </Link>
               </Button>
@@ -467,7 +575,7 @@ export default function Dashboard() {
             <CardDescription>Opportunities that fit your profile</CardDescription>
           </div>
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/scholarships-intel">View All</Link>
+            <Link to={`/scholarships-intel${demoSearch}`}>View All</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -483,7 +591,7 @@ export default function Dashboard() {
                 Complete your profile and visit Scholarships Intel to find opportunities you qualify for.
               </p>
               <Button variant="outline" size="sm" className="mt-4" asChild>
-                <Link to="/scholarships-intel">Find Scholarships</Link>
+                <Link to={`/scholarships-intel${demoSearch}`}>Find Scholarships</Link>
               </Button>
             </div>
           ) : (

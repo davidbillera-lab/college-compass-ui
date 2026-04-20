@@ -102,7 +102,7 @@ serve(async (req) => {
       }
     }
 
-    let results: Record<string, MatchScoreResult> = {};
+    const results: Record<string, MatchScoreResult> = {};
 
     if (type === "scholarships" && scholarship_ids?.length > 0) {
       const { data: scholarships, error: schError } = await supabase

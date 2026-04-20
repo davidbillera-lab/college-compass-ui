@@ -465,7 +465,7 @@ export default function PipelineView() {
                             e.stopPropagation();
                             const current = tracked[s.scholarshipId].status;
                             const next = nextScholarshipStatus(current);
-                            setTracked((m: any) => setScholarshipStatus(m, s.scholarshipId, next));
+                            setTracked((m) => setScholarshipStatus(m, s.scholarshipId, next));
                           }}
                           title="Click to change tracking status"
                         >
@@ -479,7 +479,7 @@ export default function PipelineView() {
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setTracked((m: any) =>
+                            setTracked((m) =>
                               upsertScholarship(m, s.scholarshipId, s.scholarshipName, "to_apply")
                             );
                           }}
@@ -505,17 +505,17 @@ export default function PipelineView() {
         notes={isTrackedItem ? (tracked[selectedId].notes ?? "") : ""}
         onTrack={() => {
           if (!selected) return;
-          setTracked((m: any) =>
+          setTracked((m) =>
             upsertScholarship(m, selected.scholarshipId, selected.scholarshipName, "to_apply")
           );
         }}
         onStatusChange={(status: ScholarshipStatus) => {
           if (!selected) return;
-          setTracked((m: any) => setScholarshipStatus(m, selected.scholarshipId, status));
+          setTracked((m) => setScholarshipStatus(m, selected.scholarshipId, status));
         }}
         onNotesChange={(notes: string) => {
           if (!selected) return;
-          setTracked((m: any) => setScholarshipNotes(m, selected.scholarshipId, notes));
+          setTracked((m) => setScholarshipNotes(m, selected.scholarshipId, notes));
         }}
       />
     </div>

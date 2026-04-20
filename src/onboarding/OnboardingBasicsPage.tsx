@@ -47,7 +47,7 @@ export default function OnboardingBasicsPage() {
 
   useEffect(() => {
     (async () => {
-      const prof: any = await ensureProfileRow();
+      const prof = await ensureProfileRow();
       if (prof.preferred_name) setPreferredName(prof.preferred_name);
       if (prof.graduation_year) setGradYear(prof.graduation_year);
       if (prof.school) setSchool(prof.school);
@@ -75,8 +75,8 @@ export default function OnboardingBasicsPage() {
         intended_majors: majors.length > 0 ? majors : null,
       }).eq("id", user.id);
       nav("/onboarding/academics");
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to save");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }

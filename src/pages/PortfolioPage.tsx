@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchMaterials,
   deleteMaterial,
@@ -53,6 +54,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { demoPortfolioMaterials } from "@/lib/demoStudent";
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   transcript: FileText,
@@ -231,6 +233,8 @@ function CategorySection({
 
 export default function PortfolioPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
   const [materials, setMaterials] = useState<ApplicationMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -240,6 +244,12 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState("portfolio");
 
   const load = useCallback(async () => {
+    if (isDemoMode) {
+      setMaterials(demoPortfolioMaterials);
+      setLoading(false);
+      return;
+    }
+
     if (!user) return;
     try {
       const data = await fetchMaterials(user.id);
@@ -250,13 +260,19 @@ export default function PortfolioPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isDemoMode, user]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const handleDelete = async () => {
+    if (isDemoMode) {
+      toast.info("Deletion is disabled in demo mode");
+      setDeleteTarget(null);
+      return;
+    }
+
     if (!deleteTarget) return;
     setDeleting(true);
     try {
@@ -300,11 +316,11 @@ export default function PortfolioPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShareOpen(true)}>
             <Share2 className="h-4 w-4 mr-2" />
-            Share
+            {isDemoMode ? "Demo Share" : "Share"}
           </Button>
-          <Button onClick={() => setUploadOpen(true)}>
+          <Button onClick={() => isDemoMode ? toast.info("Uploads are disabled in demo mode") : setUploadOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Material
+            {isDemoMode ? "Demo Materials" : "Add Material"}
           </Button>
         </div>
       </div>
@@ -473,11 +489,13 @@ export default function PortfolioPage() {
       />
 
       {/* Share Panel */}
-      <PortfolioSharePanel
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-        materials={materials}
-      />
+      {!isDemoMode && (
+        <PortfolioSharePanel
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          materials={materials}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>

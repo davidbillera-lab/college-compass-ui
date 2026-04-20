@@ -138,7 +138,7 @@ Provide guidance on:
         userMessage = `The student uploaded a photo/image with this context:\n\nTitle: ${content.title}\nDescription: ${content.description}\nCategory: ${content.category}\n\nProvide guidance on how to best use this in their college application.`;
         break;
 
-      case "detect_gaps":
+      case "detect_gaps": {
         // Analyze all materials to find gaps
         systemPrompt = `You are an expert college admissions consultant reviewing a student's complete application portfolio. Identify missing elements that could strengthen their application.
 
@@ -180,8 +180,9 @@ Student Profile:
 
         userMessage = `Review this student's current application materials and identify gaps:\n\n${profileContext}\n\nCurrent Materials:\n${materialsContext}`;
         break;
+      }
 
-      case "highlight_strengths":
+      case "highlight_strengths": {
         // Find and highlight strongest content
         systemPrompt = `You are an expert college admissions strategist. Analyze the student's materials and identify their strongest assets for college applications.
 
@@ -222,8 +223,9 @@ Student Profile:
 
         userMessage = `Analyze this student's materials and identify their strongest assets:\n\n${strengthProfile}\n\nMaterials:\n${strengthMaterials}`;
         break;
+      }
 
-      case "comprehensive_review":
+      case "comprehensive_review": {
         // Full portfolio review combining all analyses
         systemPrompt = `You are a senior college admissions consultant providing a comprehensive portfolio review. Analyze all aspects of the student's application readiness.
 
@@ -245,6 +247,7 @@ Be specific, actionable, and encouraging while being honest about areas needing 
 
         userMessage = `Provide a comprehensive application portfolio review:\n\nProfile:\n${compProfile}\n\nMaterials:\n${compMaterials}`;
         break;
+      }
 
       default:
         throw new Error(`Unknown action: ${action}`);

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchApplications,
   updateApplicationStatus,
@@ -60,6 +61,7 @@ import {
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
+import { buildDemoChecklist, demoApplications } from "@/lib/demoStudent";
 
 // ─── Category icons ───────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<ChecklistCategory, React.ElementType> = {
@@ -113,25 +115,35 @@ interface ChecklistDrawerProps {
   open: boolean;
   onClose: () => void;
   studentId: string;
+  demoMode?: boolean;
+  demoItems?: ChecklistItem[];
+  onDemoItemsChange?: (items: ChecklistItem[]) => void;
+  onDemoDeadlineSave?: (appId: string, deadlineDate: string | null, appType: AppType) => void;
 }
 
-function ChecklistDrawer({ app, open, onClose, studentId }: ChecklistDrawerProps) {
+function ChecklistDrawer({
+  app,
+  open,
+  onClose,
+  studentId,
+  demoMode = false,
+  demoItems = [],
+  onDemoItemsChange,
+  onDemoDeadlineSave,
+}: ChecklistDrawerProps) {
   const [items, setItems] = React.useState<ChecklistItem[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [deadlineInput, setDeadlineInput] = React.useState("");
   const [appTypeInput, setAppTypeInput] = React.useState<AppType>("RD");
   const [savingDeadline, setSavingDeadline] = React.useState(false);
 
-  React.useEffect(() => {
-    if (open && app) {
-      setDeadlineInput(app.deadline_date ?? "");
-      setAppTypeInput((app.app_type as AppType) ?? "RD");
-      void loadChecklist();
-    }
-  }, [open, app]);
-
-  const loadChecklist = async () => {
+  const loadChecklist = React.useCallback(async () => {
     if (!app) return;
+    if (demoMode) {
+      setItems(demoItems);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       let list = await fetchChecklist(studentId, app.college_id);
@@ -144,10 +156,25 @@ function ChecklistDrawer({ app, open, onClose, studentId }: ChecklistDrawerProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [app, demoItems, demoMode, studentId]);
+
+  React.useEffect(() => {
+    if (open && app) {
+      setDeadlineInput(app.deadline_date ?? "");
+      setAppTypeInput((app.app_type as AppType) ?? "RD");
+      void loadChecklist();
+    }
+  }, [open, app, loadChecklist]);
 
   const handleSeedChecklist = async () => {
     if (!app) return;
+    if (demoMode) {
+      const list = buildDemoChecklist(studentId, app.college_id);
+      setItems(list);
+      onDemoItemsChange?.(list);
+      toast.success("Demo checklist created!");
+      return;
+    }
     setLoading(true);
     try {
       const list = await seedChecklist(studentId, app.college_id);
@@ -162,13 +189,16 @@ function ChecklistDrawer({ app, open, onClose, studentId }: ChecklistDrawerProps
 
   const handleToggle = async (item: ChecklistItem) => {
     const newCompleted = !item.completed_at;
-    setItems((prev) =>
-      prev.map((i) =>
+    const nextItems = items.map((i) =>
         i.id === item.id
           ? { ...i, completed_at: newCompleted ? new Date().toISOString() : null }
           : i
-      )
-    );
+      );
+    setItems(nextItems);
+    if (demoMode) {
+      onDemoItemsChange?.(nextItems);
+      return;
+    }
     try {
       await toggleChecklistItem(item.id, newCompleted);
     } catch {
@@ -184,6 +214,11 @@ function ChecklistDrawer({ app, open, onClose, studentId }: ChecklistDrawerProps
 
   const handleSaveDeadline = async () => {
     if (!app) return;
+    if (demoMode) {
+      onDemoDeadlineSave?.(app.id, deadlineInput || null, appTypeInput);
+      toast.success("Demo deadline saved!");
+      return;
+    }
     setSavingDeadline(true);
     try {
       await updateApplicationDeadline(app.id, deadlineInput || null, appTypeInput);
@@ -434,16 +469,28 @@ function AppCard({ app, onStatusChange, onOpenChecklist }: AppCardProps) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ApplicationTrackerPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("guest") === "true" && searchParams.get("demo") === "junior";
+  const demoSearch = isDemoMode ? "?guest=true&demo=junior" : "";
   const [apps, setApps] = React.useState<CollegeApplication[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedApp, setSelectedApp] = React.useState<CollegeApplication | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [demoChecklistMap, setDemoChecklistMap] = React.useState<Record<string, ChecklistItem[]>>(() =>
+    Object.fromEntries(
+      demoApplications.map((application) => [
+        application.college_id,
+        buildDemoChecklist(application.student_id, application.college_id),
+      ])
+    )
+  );
 
-  React.useEffect(() => {
-    if (user) void loadApps();
-  }, [user]);
-
-  const loadApps = async () => {
+  const loadApps = React.useCallback(async () => {
+    if (isDemoMode) {
+      setApps(demoApplications);
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     setLoading(true);
     try {
@@ -454,12 +501,20 @@ export default function ApplicationTrackerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemoMode, user]);
+
+  React.useEffect(() => {
+    if (isDemoMode || user) void loadApps();
+  }, [isDemoMode, user, loadApps]);
 
   const handleStatusChange = async (matchId: string, newStatus: AppStatus) => {
     setApps((prev) =>
       prev.map((a) => (a.id === matchId ? { ...a, shortlist_status: newStatus } : a))
     );
+    if (isDemoMode) {
+      toast.success(`Moved to ${STATUS_CONFIG[newStatus].label}`);
+      return;
+    }
     try {
       await updateApplicationStatus(matchId, newStatus);
       toast.success(`Moved to ${STATUS_CONFIG[newStatus].label}`);
@@ -472,6 +527,29 @@ export default function ApplicationTrackerPage() {
   const handleOpenChecklist = (app: CollegeApplication) => {
     setSelectedApp(app);
     setDrawerOpen(true);
+  };
+
+  const handleDemoChecklistChange = (collegeId: string, items: ChecklistItem[]) => {
+    setDemoChecklistMap((prev) => ({ ...prev, [collegeId]: items }));
+  };
+
+  const handleDemoDeadlineSave = (appId: string, deadlineDate: string | null, appType: AppType) => {
+    setApps((prev) =>
+      prev.map((application) =>
+        application.id === appId
+          ? {
+              ...application,
+              deadline_date: deadlineDate,
+              app_type: appType,
+            }
+          : application
+      )
+    );
+    setSelectedApp((prev) =>
+      prev && prev.id === appId
+        ? { ...prev, deadline_date: deadlineDate, app_type: appType }
+        : prev
+    );
   };
 
   const columns: { status: AppStatus; apps: CollegeApplication[] }[] = [
@@ -494,13 +572,13 @@ export default function ApplicationTrackerPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/deadlines">
+            <Link to={`/deadlines${demoSearch}`}>
               <Calendar className="h-4 w-4 mr-1.5" />
               Deadline Hub
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/colleges">
+            <Link to={`/colleges${demoSearch}`}>
               <GraduationCap className="h-4 w-4 mr-1.5" />
               Add Colleges
             </Link>
@@ -545,7 +623,7 @@ export default function ApplicationTrackerPage() {
               Go to College Fit, mark schools as Interested or Applying, and they'll appear here.
             </p>
             <Button asChild>
-              <Link to="/colleges">
+              <Link to={`/colleges${demoSearch}`}>
                 <GraduationCap className="h-4 w-4 mr-2" />
                 Go to College Fit
               </Link>
@@ -616,7 +694,14 @@ export default function ApplicationTrackerPage() {
         app={selectedApp}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        studentId={user?.id ?? ""}
+        studentId={isDemoMode ? demoApplications[0].student_id : user?.id ?? ""}
+        demoMode={isDemoMode}
+        demoItems={selectedApp ? demoChecklistMap[selectedApp.college_id] ?? [] : []}
+        onDemoItemsChange={(items) => {
+          if (!selectedApp) return;
+          handleDemoChecklistChange(selectedApp.college_id, items);
+        }}
+        onDemoDeadlineSave={handleDemoDeadlineSave}
       />
     </div>
   );

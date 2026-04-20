@@ -63,7 +63,7 @@ export default function OnboardingActivitiesPage() {
 
   useEffect(() => {
     (async () => {
-      const prof: any = await ensureProfileRow();
+      const prof = await ensureProfileRow();
       if (prof.leadership_roles) setLeadership(prof.leadership_roles);
       if (prof.sports_played) setSports(prof.sports_played);
       if (prof.volunteer_hours) setVolHours(prof.volunteer_hours.toString());
@@ -96,8 +96,8 @@ export default function OnboardingActivitiesPage() {
         );
       }
       nav("/onboarding/story");
-    } catch (e: any) {
-      setErr(e.message ?? "Failed to save");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }

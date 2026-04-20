@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,7 @@ export function ApplicationMaterialsHub({ compact = false }: ApplicationMaterial
   const [selectedMaterial, setSelectedMaterial] = useState<ApplicationMaterial | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const loadMaterials = async () => {
+  const loadMaterials = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -48,11 +48,11 @@ export function ApplicationMaterialsHub({ compact = false }: ApplicationMaterial
     } catch (error) {
       console.error("Failed to load materials:", error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    loadMaterials();
-  }, [user, refreshTrigger]);
+    void loadMaterials();
+  }, [loadMaterials, refreshTrigger]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger((prev) => prev + 1);
