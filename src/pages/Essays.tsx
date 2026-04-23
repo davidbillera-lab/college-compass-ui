@@ -29,6 +29,9 @@ import { FileText, Plus, Clock, Pencil, Trash2, FolderOpen, Sparkles, Loader2 } 
 import { EssayCoach } from "@/components/subscription/EssayCoach";
 import { ApplicationMaterialsHub } from "@/components/application/ApplicationMaterialsHub";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 type EssayStatus = "draft" | "in-progress" | "complete";
 type EssayType = "personal_statement" | "scholarship" | "short_answer" | "supplemental";
 
