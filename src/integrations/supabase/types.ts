@@ -1054,8 +1054,3 @@ export const Constants = {
     },
   },
 } as const
-
-export type ProfileRow = Tables<"profiles">
-export type PortfolioShareRow = Tables<"portfolio_shares">
-export type ApplicationChecklistItemRow = Tables<"application_checklist_items">
-export type MonitoringAlertRow = Tables<"monitoring_alerts">
