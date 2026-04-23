@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import type { MonitoringAlertRow } from "@/integrations/supabase/types";
 
 type MonitoringAlert = {
   id: string;
@@ -63,7 +62,7 @@ export default function AdminMonitoringPage() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as MonitoringAlertRow[] as MonitoringAlert[];
+      return (data ?? []) as MonitoringAlert[];
     },
   });
 

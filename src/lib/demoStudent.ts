@@ -8,6 +8,15 @@ import type {
 } from "@/lib/applicationTrackingApi";
 import type { ProfileExtras, ProfileRow } from "@/lib/profileUtils";
 
+type DemoJuniorProfile = Partial<Profile> & {
+  id: string;
+  full_name: string;
+  preferred_name: string;
+  school: string;
+  city: string;
+  preferred_college_type: string;
+};
+
 export const demoJuniorProfile = {
   id: "demo-junior-student",
   full_name: "Maya Torres",
@@ -83,12 +92,7 @@ export const demoJuniorProfile = {
       race_ethnicity: ["Hispanic or Latino"],
     },
   },
-} as const satisfies Profile & {
-  preferred_name: string;
-  school: string;
-  city: string;
-  preferred_college_type: string;
-};
+} as const satisfies DemoJuniorProfile;
 
 export const demoJuniorAnswers: ScholarshipUserAnswer[] = [
   {
@@ -202,40 +206,40 @@ export const demoJuniorProfileExtras: ProfileExtras = {
     futureVision: "Use software and data science to improve access to education and public services.",
   },
   testScores: {
-    satComposite: 1280,
-    psatComposite: 1210,
-    apExams: [
-      { subject: "AP Computer Science Principles", score: 4 },
-      { subject: "AP Statistics", score: 4 },
+    sat: { total: 1280 },
+    psat: 1210,
+    apScores: [
+      { subject: "AP Computer Science Principles", score: 4, year: 2025 },
+      { subject: "AP Statistics", score: 4, year: 2025 },
     ],
   },
-  verification: {
-    achievementsVerified: true,
-    activitiesVerified: true,
-    documentsUploaded: true,
-  },
+  verification: {},
   videoShowcase: {
-    introVideoUrl: "https://example.com/demo-student-intro",
-    highlights: [
-      "Robotics leadership",
-      "Coding mentorship",
-      "STEM tutoring",
+    videos: [
+      {
+        id: "demo-video-1",
+        title: "Maya Torres Introduction",
+        category: "leadership",
+        url: "https://example.com/demo-student-intro",
+        uploadedAt: timestamp(5),
+        isExternal: true,
+        description: "Robotics leadership, coding mentorship, and STEM tutoring highlights.",
+      },
     ],
   },
   athleticAchievements: {
     sports: [
       {
         name: "Soccer",
-        level: "Varsity",
+        level: "varsity",
         years: "10-11",
         achievements: ["Leadership council member", "Two-year varsity midfielder"],
       },
     ],
   },
   academicAchievements: {
-    advancedCourses: ["AP Computer Science Principles", "AP Statistics", "AP English Language"],
-    honors: ["Honors Chemistry", "Honors Algebra II", "Honors US History"],
-    academicInterests: ["Computer Science", "Data Science", "Cybersecurity"],
+    academicNarrative:
+      "Advanced STEM coursework, strong humanities writing, and a clear focus on computer science, data science, and cybersecurity.",
   },
 };
 

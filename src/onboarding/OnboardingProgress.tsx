@@ -9,6 +9,7 @@ const STEPS = [
   { key: "financial",  label: "Financial",  icon: DollarSign, path: "/onboarding/financial" },
   { key: "activities", label: "Activities", icon: Trophy,     path: "/onboarding/activities" },
   { key: "story",      label: "Story",      icon: Heart,      path: "/onboarding/story" },
+  { key: "results",    label: "Results",    icon: Sparkles,   path: "/onboarding/results" },
 ] as const;
 
 type StepKey = typeof STEPS[number]["key"];
