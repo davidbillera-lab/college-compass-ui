@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Sparkles, GraduationCap, Star, ArrowRight } from "lucide-react";
 
+const db = supabase as any;
+
 export default function OnboardingResultsPage() {
   const nav = useNavigate();
   const [scholarshipCount, setScholarshipCount] = useState<number | null>(null);
@@ -19,14 +21,14 @@ export default function OnboardingResultsPage() {
 
       // Get match counts
       const [{ count: sc }, { count: cc }] = await Promise.all([
-        supabase.from("scholarship_matches").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("college_matches").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        db.from("scholarship_matches").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        db.from("college_matches").select("*", { count: "exact", head: true }).eq("student_id", user.id),
       ]);
       setScholarshipCount(sc ?? 0);
       setCollegeCount(cc ?? 0);
 
       // Compute completeness
-      const { data: prof } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const { data: prof } = await db.from("profiles").select("*").eq("id", user.id).single();
       if (prof) {
         const fields = [
           prof.preferred_name, prof.graduation_year, prof.school, prof.region,

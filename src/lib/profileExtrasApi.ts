@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Json, ProfileRow } from "@/integrations/supabase/types";
-import type { Activity, ProfileExtras } from "@/lib/profileUtils";
+import type { Json } from "@/integrations/supabase/types";
+import type { Activity, ProfileExtras, ProfileRow } from "@/lib/profileUtils";
 
 async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
