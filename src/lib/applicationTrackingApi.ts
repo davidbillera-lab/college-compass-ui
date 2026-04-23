@@ -1,16 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-type UntypedQueryResult<T> = { data: T | null; error: Error | null };
-type UntypedTableQuery<T> = {
-  select: (columns?: string) => UntypedTableQuery<T> & Promise<UntypedQueryResult<T>>;
-  eq: (column: string, value: string) => UntypedTableQuery<T>;
-  order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => UntypedTableQuery<T>;
-  insert: (values: unknown) => UntypedTableQuery<T>;
-  update: (values: unknown) => UntypedTableQuery<T>;
-};
-type UntypedSupabase = {
-  from: <T>(table: string) => UntypedTableQuery<T>;
-};
-const db = supabase as unknown as UntypedSupabase;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
