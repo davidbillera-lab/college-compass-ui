@@ -1,5 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
+type AnalyticsEventInsert = {
+  user_id: string | null;
+  event_name: string;
+  event_data: Record<string, unknown>;
+  session_id: string;
+};
+
 // Generate or retrieve session ID (persists for the browser session)
 const getSessionId = (): string => {
   const key = "analytics_session_id";
@@ -44,13 +51,15 @@ export const trackEventDb = async (
 ) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    
-    await supabase.from("analytics_events").insert({
+
+    const payload: AnalyticsEventInsert = {
       user_id: user?.id || null,
       event_name: eventName,
       event_data: eventData || {},
       session_id: getSessionId(),
-    });
+    };
+
+    await supabase.from("analytics_events").insert(payload as never);
   } catch (error) {
     console.error("[Analytics] Failed to track event:", error);
   }
